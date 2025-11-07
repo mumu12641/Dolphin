@@ -6,8 +6,10 @@ import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.cookies.AcceptAllCookiesStorage
 import io.ktor.client.plugins.cookies.HttpCookies
+import io.ktor.client.plugins.cookies.get
 import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.statement.bodyAsText
@@ -42,7 +44,7 @@ object Login {
         username: String,
         password: String,
         targetUrl: String = "http://pecg.hust.edu.cn/cggl/index1"
-    ): Map<String, String> {
+    ): Result<Map<String, String>> {
         val cookieStorage = AcceptAllCookiesStorage()
         val client = HttpClient(CIO) {
             install(HttpTimeout) {
@@ -58,17 +60,11 @@ object Login {
 
         return try {
             client.use { safeClient ->
-                val loginHtml =
-                    safeClient.get(BASE_URL) { parameter("service", targetUrl) }.bodyAsText()
+                val loginHtml = safeClient.get(BASE_URL) { parameter("service", targetUrl) }.bodyAsText()
 
                 val (lt, execution) = extractFormParameters(loginHtml)
                 val captchaCode = handleCaptcha(safeClient, loginHtml)
-                println(captchaCode)
-                val (encryptedUsername, encryptedPassword) = getEncryptedCredentials(
-                    safeClient,
-                    username,
-                    password
-                )
+                val (encryptedUsername, encryptedPassword) = getEncryptedCredentials(safeClient, username, password)
 
                 val formParameters = Parameters.build {
                     append("rsa", "")
@@ -81,10 +77,9 @@ object Login {
                     append("_eventId", "submit")
                 }
 
-                val postResponse =
-                    safeClient.submitForm(url = BASE_URL, formParameters = formParameters) {
-                        parameter("service", targetUrl)
-                    }
+                val postResponse = safeClient.submitForm(url = BASE_URL, formParameters = formParameters) {
+                    parameter("service", targetUrl)
+                }
 
                 postResponse.headers[HttpHeaders.Location]?.let { locationUrl ->
                     safeClient.get(locationUrl)
@@ -92,11 +87,10 @@ object Login {
 
                 safeClient.get(targetUrl)
 
-                cookieStorage.get(Url(targetUrl)).associate { it.name to it.value }
+                Result.Success(cookieStorage.get(Url(targetUrl)).associate { it.name to it.value })
             }
         } catch (e: Exception) {
-            e.printStackTrace()
-            emptyMap()
+            Result.Error(e)
         }
     }
 
@@ -108,17 +102,12 @@ object Login {
         return Decaptcha.decaptcha(captchaBytes).trim()
     }
 
-    private suspend fun getEncryptedCredentials(
-        client: HttpClient,
-        user: String,
-        pass: String
-    ): Pair<String, String> {
+    private suspend fun getEncryptedCredentials(client: HttpClient, user: String, pass: String): Pair<String, String> {
         val rsaJson = client.post(RSA_URL) {
             contentType(ContentType.Application.Json)
         }.bodyAsText()
 
-        val publicKeyBase64 =
-            Json.parseToJsonElement(rsaJson).jsonObject["publicKey"]!!.jsonPrimitive.content
+        val publicKeyBase64 = Json.parseToJsonElement(rsaJson).jsonObject["publicKey"]!!.jsonPrimitive.content
         val publicKeyBytes = Base64.getDecoder().decode(publicKeyBase64)
         val keySpec = X509EncodedKeySpec(publicKeyBytes)
         val keyFactory = KeyFactory.getInstance("RSA")

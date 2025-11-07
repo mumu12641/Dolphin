@@ -33,7 +33,7 @@ kotlin {
             implementation(libs.ktor.client.cio)
             implementation(libs.bouncycastle.prov)
             implementation(libs.slf4j.simple)
-
+            implementation("com.squareup.okhttp3:okhttp:4.12.0")
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -41,7 +41,6 @@ kotlin {
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutinesSwing)
-            implementation(libs.androidx.material3.jvmstubs)
         }
     }
 }

@@ -1,93 +1,55 @@
-from Crypto.PublicKey import RSA
-import requests
-from Crypto.Cipher import PKCS1_v1_5
-from Crypto.PublicKey import RSA
-import json
-import re
-from base64 import b64encode, b64decode
+def test_connection(self):
+        test_urls = [
+            f"https://pecg.hust.edu.cn/cggl/front/syqk?cdbh={self.booking_config.cdbh}&date={self.booking_config.order_date}"
+            f"&starttime={self.booking_config.start_time}&endtime={self.booking_config.end_time}",
+            "https://pecg.hust.edu.cn/cggl/front/yuyuexz",
+        ]
 
+        for attempt in range(len(test_urls)):
+            try:
+                test_url = test_urls[attempt]
+                logger.debug(
+                    f"🔄 Testing connection (attempt {attempt+1}/{len(test_urls)})..."
+                )
 
-def get_dict_cookie(r):
-    cookies = r.request.headers.get("Cookie")
-    if cookies:
-        cookies = cookies.split(";")
-        cookies = set([i.strip() for i in cookies])
-        cookies = {i.split("=")[0]: i.split("=")[1] for i in cookies}
-    return cookies
+                response = self.session.get(
+                    test_url,
+                    headers=self.booking_config.test_headers,
+                )
 
+                if response.status_code == 200:
+                    logger.info("✅ Connection test successful!")
+                    try:
+                        cg_csrf_token = re.search(
+                            r'cg_csrf_token"\s+value="([a-f0-9-]+)"', response.text
+                        ).group(1)
 
-def login(
-    username: str,
-    password: str,
-    target_url: str = "http://pecg.hust.edu.cn/cggl/index1",
-):
-    params = {"service": target_url}
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
-    }
+                        if attempt == 0:
+                            token = re.search(
+                                r'"token":\s*"([a-f0-9]+)"', response.text
+                            ).group(1)
+                        else:
+                            script_pattern = r'<script type="text/javascript">.*?name=\\"token\\".*?value=\\"([a-f0-9]{32})\\".*?</script>'
+                            token = re.search(
+                                script_pattern, response.text, re.DOTALL
+                            ).group(1)
 
-    session = requests.session()
-    session.headers.update(headers)
-    login_html = session.get("https://pass.hust.edu.cn/cas/login", params=params)
+                        return cg_csrf_token, token
 
-    captcha_check = (
-        re.search('<div class="ide-code-box">(.*)</div>', login_html.text, re.S)
-        is not None
-    )
-    if captcha_check:
-        captcha_img = session.get("https://pass.hust.edu.cn/cas/code", stream=True)
+                    except (AttributeError, IndexError) as e:
+                        logger.error(f"❌ Failed to extract token from response: {e}")
+                        continue
+                else:
+                    logger.warning(
+                        f"⚠️ Connection test failed, status code: {response.status_code}"
+                    )
 
-    pub_key = RSA.import_key(
-        b64decode(
-            json.loads(session.post("https://pass.hust.edu.cn/cas/rsa").text)[
-                "publicKey"
-            ]
-        )
-    )
-    cipher = PKCS1_v1_5.new(pub_key)
-    encrypted_u = b64encode(cipher.encrypt(username.encode())).decode()
-    encrypted_p = b64encode(cipher.encrypt(password.encode())).decode()
+            except requests.RequestException as e:
+                logger.error(f"❌ Request exception: {e}")
 
-    form = re.search('<form id="loginForm" (.*)</form>', login_html.text, re.S).group(0)
+            if attempt < self.max_retries - 1:
+                logger.debug(f"⏳ Waiting {self.retry_delay} seconds before retry...")
+                time.sleep(self.retry_delay)
 
-    nonce = re.search(
-        '<input type="hidden" id="lt" name="lt" value="(.*)" />', form
-    ).group(1)
-
-    execution = re.search(
-        '<input type="hidden" name="execution" value="(.*)" />', form
-    ).group(1)
-
-    post_params = {
-        "rsa": None,
-        "ul": encrypted_u,
-        "pl": encrypted_p,
-        "code": None if not captcha_check else decaptcha(captcha_img.content).strip(),
-        "phoneCode": None,
-        "lt": nonce,
-        "execution": execution,
-        "_eventId": "submit",
-    }
-
-    resp = session.post(
-        "https://pass.hust.edu.cn/cas/login",
-        params=params,
-        data=post_params,
-        allow_redirects=False,
-    )
-
-    url = resp.headers["Location"]
-    resp = session.get(url, headers=headers)
-    cookies = dict(resp.cookies)
-
-    result = session.get(target_url, headers=headers, cookies=cookies)
-    cookies = get_dict_cookie(result)
-
-    return cookies
-
-
-if __name__ == "__main__":
-    user = "M202474221"
-    pwd = "PENG20020813peng"
-    cookies = login(user, pwd)
-    print(cookies)
+        logger.error("❌ Connection test failed, maximum retry attempts reached")
+        return None, None
