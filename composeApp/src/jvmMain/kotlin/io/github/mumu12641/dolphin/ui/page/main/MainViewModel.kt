@@ -6,18 +6,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import io.github.mumu12641.dolphin.data.UserPreferencesRepository
 import io.github.mumu12641.dolphin.model.BookingInfo
-import io.github.mumu12641.dolphin.network.Login
-import io.github.mumu12641.dolphin.network.Network
-import io.github.mumu12641.dolphin.network.Result
+import io.github.mumu12641.dolphin.service.BookingService
 import io.github.mumu12641.dolphin.util.Constant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import moe.tlaster.precompose.viewmodel.ViewModel
 import moe.tlaster.precompose.viewmodel.viewModelScope
+import java.io.File
 import java.text.SimpleDateFormat
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.util.Date
 
 class MainViewModel : ViewModel() {
@@ -60,81 +59,58 @@ class MainViewModel : ViewModel() {
     fun startBooking() {
         logMessages.clear()
         showLog = true
+        bookingState = BookingState.RUNNING
 
-        viewModelScope.launch(Dispatchers.IO) {
-            bookingState = BookingState.RUNNING
+        viewModelScope.launch {
             val user = UserPreferencesRepository.userFlow.first()
             val username = user.first
             val password = user.second
 
             if (username.isBlank() || password.isBlank()) {
-                addLog("用户信息未填写。请前往设置页面填写。", LogType.ERROR)
-                bookingState = BookingState.STOPPED
+                addLog("❌ 用户信息未填写。请前往设置页面填写。", LogType.ERROR)
+                withContext(Dispatchers.Main) {
+                    bookingState = BookingState.STOPPED
+                }
                 return@launch
             }
-            addLog("用户信息校验通过。", LogType.INFO)
 
-            addLog("正在检查场地优先级设置...", LogType.INFO)
             val courtCount = getCourtCountForSelectedVenue()
-            val courts = selectedCourts.toMutableList() // Create a mutable copy
+            val courts = selectedCourts.toMutableList()
             if (courtCount > 0 && courts.size < courtCount) {
                 val remainingCourts = (1..courtCount).filter { it !in courts }.shuffled()
                 courts.addAll(remainingCourts)
-                addLog("部分或全部场地已随机设置优先级。", LogType.TIP)
             }
-            addLog("最终场地优先级: ${courts.joinToString(" -> ")}", LogType.INFO)
 
-            addLog("正在登录...", LogType.INFO)
-            val cookies = when (val loginResult = Login.login(username, password)) {
-                is Result.Success -> {
-                    addLog("登录成功。", LogType.INFO)
-                    loginResult.data
-                }
+            val priorityList =
+                courts.mapNotNull { Constant.COURT_IDS[selectedVenue]?.get(it) }.joinToString(",")
 
-                is Result.Error -> {
-                    addLog("登录失败: ${loginResult.exception.message}", LogType.ERROR)
-                    bookingState = BookingState.STOPPED
-                    return@launch
-                }
-            }
-            println(cookies)
+            val executablePath =
+                File(System.getProperty("user.dir"),"HUST_Booking_Assistant.exe").absolutePath
 
-            val (startTime, endTime) = selectedTimeSlot.split("-")
-            val orderDate =
-                LocalDate.now().plusDays(2).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
 
             val bookingInfo = BookingInfo(
                 venueId = Constant.VENUE_IDS[selectedVenue]!!,
-                courtId = Constant.COURT_IDS[selectedVenue]!![courts.first()]!!,
-                orderDate = orderDate,
-                startTime = startTime,
-                endTime = endTime
+                startTime = selectedTimeSlot.split("-").first(),
+                priorityList = priorityList,
+                username = username,
+                password = password
             )
 
-            val tokenResult = Network.testConnection(
-                cookies,
-                bookingInfo
-            )
-
-            val (csrfToken, token) = when (tokenResult) {
-                is Result.Success -> {
-                    val (csrf, t) = tokenResult.data
-                    addLog("获取到 CSRF Token: $csrf", LogType.INFO)
-                    addLog("获取到 Token: $t", LogType.INFO)
-                    tokenResult.data
-                }
-
-                is Result.Error -> {
-                    addLog("获取 Token 失败: ${tokenResult.exception.message}", LogType.ERROR)
+            BookingService.start(
+                executablePath = executablePath,
+                bookingInfo = bookingInfo
+            ).onCompletion {
+                withContext(Dispatchers.Main) {
                     bookingState = BookingState.STOPPED
-                    return@launch
                 }
+            }.collect { logEntry ->
+                logMessages.add(logEntry)
             }
-            addLog("开始预约...", LogType.INFO)
         }
     }
 
     fun stopBooking() {
+        BookingService.stop()
         addLog("预约已中止。", LogType.INFO)
         bookingState = BookingState.STOPPED
     }
@@ -144,13 +120,8 @@ class MainViewModel : ViewModel() {
         bookingState = BookingState.IDLE
     }
 
-    fun saveSettings() {
-        // 在这里实现保存逻辑
-        addLog("设置已保存!", LogType.INFO)
-    }
-
     private fun addLog(message: String, type: LogType) {
-        val timestamp = SimpleDateFormat("HH:mm:ss.SSS").format(Date())
+        val timestamp = SimpleDateFormat("yyyy-mm-dd HH:mm:ss.SSS").format(Date())
         logMessages.add(LogEntry(message, timestamp, type))
     }
 }
@@ -160,7 +131,12 @@ enum class BookingState {
 }
 
 enum class LogType {
-    INFO, ERROR, TIP
+    INFO, WARNING, DEBUG, ERROR
 }
 
-data class LogEntry(val message: String, val timestamp: String, val type: LogType)
+data class LogEntry(
+    val message: String,
+    val timestamp: String,
+    val type: LogType,
+    val exeLog: Boolean = false
+)

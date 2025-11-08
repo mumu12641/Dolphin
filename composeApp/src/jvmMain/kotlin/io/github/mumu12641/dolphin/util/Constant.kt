@@ -1,5 +1,7 @@
 package io.github.mumu12641.dolphin.util
 
+import androidx.compose.ui.graphics.Color
+
 object Constant {
     val VENUES = listOf("西体", "光体", "游泳馆")
 

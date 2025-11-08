@@ -28,12 +28,15 @@ kotlin {
             implementation(libs.mpfilepicker)
             implementation(libs.precompose)
             implementation(libs.precompose.viewmodel)
+            implementation(libs.datastore.core)
             implementation(libs.datastore.preferences)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.cio)
             implementation(libs.bouncycastle.prov)
             implementation(libs.slf4j.simple)
-            implementation("com.squareup.okhttp3:okhttp:4.12.0")
+//            implementation(libs.m3color)
+//            implementation("com.github.Kyant0:m3color:2025.4")
+
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -52,6 +55,8 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Msi)
+            modules("jdk.unsupported")
+            modules("jdk.unsupported.desktop")
             packageName = "io.github.mumu12641.dolphin"
             packageVersion = "1.0.0"
 

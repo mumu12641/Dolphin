@@ -44,7 +44,6 @@ class SettingsViewModel : ViewModel() {
             username = user.user
             password = user.pwd
         } catch (e: Exception) {
-            // Handle JSON parsing error
             e.printStackTrace()
         }
     }

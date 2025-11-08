@@ -2,19 +2,26 @@ package io.github.mumu12641.dolphin.ui.page.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -29,10 +36,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.darkrockstudios.libraries.mpfilepicker.FilePicker
+import io.github.mumu12641.dolphin.util.Constant
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel = SettingsViewModel(), onNavigateUp: () -> Unit) {
+fun SettingsScreen(
+    viewModel: SettingsViewModel = SettingsViewModel(),
+    onNavigateUp: () -> Unit
+) {
     FilePicker(show = viewModel.showFilePicker, fileExtensions = listOf("json")) { file ->
         viewModel.onFileSelected(file)
     }
@@ -64,44 +75,88 @@ fun SettingsScreen(viewModel: SettingsViewModel = SettingsViewModel(), onNavigat
         }
     ) { paddingValues ->
         Column(
-            modifier = Modifier
-                .padding(paddingValues)
-                .padding(16.dp)
-                .fillMaxWidth()
-                .background(
-                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(12.dp)
-                )
-                .padding(16.dp)
+            modifier = Modifier.padding(paddingValues).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Default.Person,
-                    contentDescription = "用户信息",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(Modifier.width(8.dp))
-                Text("用户信息", style = MaterialTheme.typography.titleMedium)
-            }
-            Spacer(Modifier.height(16.dp))
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .padding(16.dp)
             ) {
-                OutlinedTextField(
-                    value = viewModel.username,
-                    onValueChange = { viewModel.username = it },
-                    label = { Text("账号") },
-                    modifier = Modifier.weight(1f)
-                )
-                OutlinedTextField(
-                    value = viewModel.password,
-                    onValueChange = { viewModel.password = it },
-                    label = { Text("密码") },
-                    modifier = Modifier.weight(1f)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Person,
+                        contentDescription = "用户信息",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("用户信息", style = MaterialTheme.typography.titleMedium)
+                }
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = viewModel.username,
+                        onValueChange = { viewModel.username = it },
+                        label = { Text("账号") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = viewModel.password,
+                        onValueChange = { viewModel.password = it },
+                        label = { Text("密码") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
+
+//            Column(
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .background(
+//                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+//                        shape = RoundedCornerShape(12.dp)
+//                    )
+//                    .padding(16.dp)
+//            ) {
+//                Row(verticalAlignment = Alignment.CenterVertically) {
+//                    Icon(
+//                        Icons.Default.ColorLens,
+//                        contentDescription = "主题颜色",
+//                        tint = MaterialTheme.colorScheme.primary
+//                    )
+//                    Spacer(Modifier.width(8.dp))
+//                    Text("主题颜色", style = MaterialTheme.typography.titleMedium)
+//                }
+//                Spacer(Modifier.height(16.dp))
+//                Row(
+//                    Modifier.fillMaxWidth(),
+//                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+//                    verticalAlignment = Alignment.CenterVertically
+//                ) {
+//                    Constant.THEME_COLORS.forEach { color ->
+//                        Button(
+//                            onClick = { themeViewModel.changeThemeColor(color) },
+//                            shape = CircleShape,
+//                            modifier = Modifier.size(40.dp),
+//                            contentPadding = PaddingValues(0.dp)
+//                        ) {
+//                            Box(
+//                                modifier = Modifier
+//                                    .fillMaxSize()
+//                                    .background(color)
+//                            )
+//                        }
+//                    }
+//                }
+//            }
         }
     }
 }

@@ -14,6 +14,7 @@ import moe.tlaster.precompose.viewmodel.viewModel
 @Composable
 fun App() {
     val navigator = rememberNavigator()
+
     DolphinTheme {
         NavHost(
             navigator = navigator,
@@ -31,9 +32,12 @@ fun App() {
                 val settingsViewModel = viewModel(modelClass = SettingsViewModel::class) {
                     SettingsViewModel()
                 }
-                SettingsScreen(viewModel = settingsViewModel, onNavigateUp = {
-                    navigator.goBack()
-                })
+                SettingsScreen(
+                    viewModel = settingsViewModel,
+                    onNavigateUp = {
+                        navigator.goBack()
+                    }
+                )
             }
         }
     }

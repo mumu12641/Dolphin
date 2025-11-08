@@ -10,6 +10,7 @@ pluginManagement {
                 includeGroupAndSubgroups("com.google")
             }
         }
+        maven("https://jitpack.io")
         mavenCentral()
         gradlePluginPortal()
     }

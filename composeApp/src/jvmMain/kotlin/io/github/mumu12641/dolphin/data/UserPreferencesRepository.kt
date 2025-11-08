@@ -16,7 +16,7 @@ object UserPreferencesRepository {
     private val PASSWORD_KEY = stringPreferencesKey("password")
 
     private val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
-        produceFile = { File(System.getProperty("user.home"), DATASTORE_NAME) }
+        produceFile = { File(System.getProperty("java.io.tmpdir"), DATASTORE_NAME) }
     )
 
     val userFlow: Flow<Pair<String, String>> = dataStore.data

@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -46,9 +47,12 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 
 
@@ -233,7 +237,7 @@ private fun FormContent(viewModel: MainViewModel) {
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        "预约时间段 (单选)", style = MaterialTheme.typography.titleMedium,
+                        "预约时间段", style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )
                 }
@@ -268,6 +272,13 @@ private fun FormContent(viewModel: MainViewModel) {
 
 @Composable
 private fun LogContent(viewModel: MainViewModel) {
+    val lazyListState = rememberLazyListState()
+    LaunchedEffect(viewModel.logMessages.size) {
+        if (viewModel.logMessages.isNotEmpty()) {
+            lazyListState.animateScrollToItem(viewModel.logMessages.lastIndex)
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -297,19 +308,38 @@ private fun LogContent(viewModel: MainViewModel) {
             }
             Spacer(Modifier.height(16.dp))
             LazyColumn(
+                state = lazyListState,
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 items(viewModel.logMessages) { logEntry ->
-                    val color = when (logEntry.type) {
-                        LogType.INFO -> Color.Unspecified
-                        LogType.ERROR -> Color.Red
-                        LogType.TIP -> Color.Blue
+                    val messageColor = when (logEntry.type) {
+                        LogType.INFO -> MaterialTheme.colorScheme.primary
+                        LogType.ERROR -> MaterialTheme.colorScheme.error
+                        LogType.WARNING -> MaterialTheme.colorScheme.tertiary
+                        LogType.DEBUG -> MaterialTheme.colorScheme.secondary
                     }
+                    val timestampColor = MaterialTheme.colorScheme.onSurfaceVariant
+
+                    val annotatedString = buildAnnotatedString {
+                        withStyle(style = SpanStyle(color = timestampColor)) {
+                            append("${logEntry.timestamp} ")
+                        }
+                        withStyle(style = SpanStyle(color = messageColor)) {
+                            append(
+                                if (!logEntry.exeLog) {
+                                    "- ${logEntry.type} - ${logEntry.message}"
+                                } else {
+                                    logEntry.message
+                                }
+                            )
+                        }
+                    }
+
                     Text(
-                        text = "[${logEntry.timestamp}] ${logEntry.message}",
-                        color = color,
-                        modifier = Modifier.padding(4.dp)
+                        text = annotatedString,
+                        modifier = Modifier.padding(4.dp),
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
