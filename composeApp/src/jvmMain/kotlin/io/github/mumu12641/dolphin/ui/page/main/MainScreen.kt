@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
@@ -37,6 +38,7 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedFilterChip
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -71,33 +73,36 @@ fun MainScreen(viewModel: MainViewModel = MainViewModel(), onNavigateToSettings:
             )
         },
         floatingActionButton = {
-            when (viewModel.bookingState) {
-                BookingState.IDLE -> {
-                    FloatingActionButton(
-                        onClick = { viewModel.startBooking() }
-                    ) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = "Start Booking")
+            if (viewModel.showLog) {
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    ExtendedFloatingActionButton(
+                        onClick = { viewModel.saveLogToFile() },
+                        icon = { Icon(Icons.Default.Save, "保存") },
+                        text = { Text("保存") }
+                    )
+                    when (viewModel.bookingState) {
+                        BookingState.RUNNING -> {
+                            ExtendedFloatingActionButton(
+                                onClick = { viewModel.stopBooking() },
+                                icon = { Icon(Icons.Default.Stop, "停止") },
+                                text = { Text("停止") }
+                            )
+                        }
+                        else -> {
+                            ExtendedFloatingActionButton(
+                                onClick = { viewModel.backToForm() },
+                                icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回") },
+                                text = { Text("返回") }
+                            )
+                        }
                     }
                 }
-
-                BookingState.RUNNING -> {
-                    FloatingActionButton(
-                        onClick = { viewModel.stopBooking() }
-                    ) {
-                        Icon(Icons.Default.Stop, contentDescription = "Stop Booking")
-                    }
-                }
-
-                BookingState.STOPPED -> {
-                    FloatingActionButton(
-                        onClick = { viewModel.backToForm() }
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back to Form"
-                        )
-                    }
-                }
+            } else {
+                ExtendedFloatingActionButton(
+                    onClick = { viewModel.startBooking() },
+                    icon = { Icon(Icons.Default.PlayArrow, "开始预约") },
+                    text = { Text("开始预约") }
+                )
             }
         }
     ) { paddingValues ->
@@ -282,7 +287,7 @@ private fun LogContent(viewModel: MainViewModel) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(bottom = 80.dp) // Space for the FAB
+            .padding(bottom = 140.dp) // Space for the FAB
     ) {
         Column(
             modifier = Modifier

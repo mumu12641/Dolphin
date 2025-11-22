@@ -34,8 +34,6 @@ kotlin {
             implementation(libs.ktor.client.cio)
             implementation(libs.bouncycastle.prov)
             implementation(libs.slf4j.simple)
-//            implementation(libs.m3color)
-//            implementation("com.github.Kyant0:m3color:2025.4")
 
         }
         commonTest.dependencies {
@@ -57,9 +55,12 @@ compose.desktop {
             targetFormats(TargetFormat.Msi)
             modules("jdk.unsupported")
             modules("jdk.unsupported.desktop")
-            packageName = "io.github.mumu12641.dolphin"
+            packageName = "Dolphin"
             packageVersion = "1.0.0"
 
+            windows {
+                iconFile.set(project.layout.projectDirectory.file("src/jvmMain/resources/icon.ico"))
+            }
         }
     }
 }

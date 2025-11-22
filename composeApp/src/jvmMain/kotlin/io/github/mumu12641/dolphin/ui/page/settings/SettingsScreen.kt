@@ -2,28 +2,21 @@ package io.github.mumu12641.dolphin.ui.page.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
@@ -36,7 +29,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.darkrockstudios.libraries.mpfilepicker.FilePicker
-import io.github.mumu12641.dolphin.util.Constant
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,17 +52,22 @@ fun SettingsScreen(
             )
         },
         floatingActionButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                FloatingActionButton(onClick = {
-                    viewModel.openFilePicker()
-                }) {
-                    Icon(Icons.Default.FileUpload, contentDescription = "Import from JSON")
-                }
-                FloatingActionButton(onClick = {
-                    viewModel.saveUser()
-                }) {
-                    Icon(Icons.Default.Save, contentDescription = "Save User")
-                }
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                ExtendedFloatingActionButton(
+                    onClick = {
+                        viewModel.openFilePicker()
+                    },
+                    icon = { Icon(Icons.Default.FileUpload, contentDescription = "导入JSON文件") },
+                    text = { Text("导入用户文件") }
+                )
+                ExtendedFloatingActionButton(
+                    onClick = { viewModel.saveUser() },
+                    icon = { Icon(Icons.Default.Save, contentDescription = "Save User") },
+                    text = { Text("保存用户信息") }
+                )
             }
         }
     ) { paddingValues ->

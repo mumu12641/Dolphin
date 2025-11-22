@@ -16,6 +16,7 @@ import kotlinx.coroutines.withContext
 import moe.tlaster.precompose.viewmodel.ViewModel
 import moe.tlaster.precompose.viewmodel.viewModelScope
 import java.io.File
+import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 
@@ -85,7 +86,7 @@ class MainViewModel : ViewModel() {
                 courts.mapNotNull { Constant.COURT_IDS[selectedVenue]?.get(it) }.joinToString(",")
 
             val executablePath =
-                File(System.getProperty("user.dir"),"HUST_Booking_Assistant.exe").absolutePath
+                File(System.getProperty("user.dir"),"Goodminton.exe").absolutePath
 
 
             val bookingInfo = BookingInfo(
@@ -111,13 +112,40 @@ class MainViewModel : ViewModel() {
 
     fun stopBooking() {
         BookingService.stop()
-        addLog("预约已中止。", LogType.INFO)
+        addLog("🛑 预约已中止。", LogType.INFO)
         bookingState = BookingState.STOPPED
     }
 
     fun backToForm() {
         showLog = false
         bookingState = BookingState.IDLE
+    }
+
+    fun saveLogToFile() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val appDir = File(System.getProperty("user.dir"))
+                val logDir = File(appDir, "log")
+                if (!logDir.exists()) {
+                    logDir.mkdirs()
+                }
+                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
+                val existingLogFiles = logDir.listFiles { _, name ->
+                    name.startsWith("dolphin_") && name.endsWith(".log")
+                } ?: emptyArray()
+                val nextNumber = existingLogFiles.size + 1
+                val fileNumber = String.format("%03d", nextNumber) 
+                val logFile = File(logDir, "dolphin_${fileNumber}_${timestamp}.log")
+                logFile.bufferedWriter().use { writer ->
+                    logMessages.forEach {
+                        writer.write("[${it.timestamp}] ${it.message}\n")
+                    }
+                }
+                addLog("📝 日志已保存到: ${logFile.absolutePath}", LogType.INFO)
+            } catch (e: IOException) {
+                addLog("❌ 日志保存失败: ${e.message}", LogType.ERROR)
+            }
+        }
     }
 
     private fun addLog(message: String, type: LogType) {
