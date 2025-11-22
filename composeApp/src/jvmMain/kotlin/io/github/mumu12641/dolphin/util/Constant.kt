@@ -1,7 +1,5 @@
 package io.github.mumu12641.dolphin.util
 
-import androidx.compose.ui.graphics.Color
-
 object Constant {
     val VENUES = listOf("西体", "光体", "游泳馆")
 
@@ -14,6 +12,12 @@ object Constant {
         "西体" to "69",
         "光体" to "45",
         "游泳馆" to "117"
+    )
+
+    val VENUE_COLS = mapOf(
+        "西体" to 3,
+        "光体" to 5,
+        "游泳馆" to 3
     )
 
     val COURT_IDS = mapOf(

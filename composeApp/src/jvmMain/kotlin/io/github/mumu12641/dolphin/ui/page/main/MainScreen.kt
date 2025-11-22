@@ -1,9 +1,7 @@
 package io.github.mumu12641.dolphin.ui.page.main
 
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import RunningScreen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,7 +27,6 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
@@ -40,7 +37,6 @@ import androidx.compose.material3.ElevatedFilterChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
@@ -56,6 +52,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import io.github.mumu12641.dolphin.ui.page.WelcomeScreen
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -73,47 +70,112 @@ fun MainScreen(viewModel: MainViewModel = MainViewModel(), onNavigateToSettings:
             )
         },
         floatingActionButton = {
-            if (viewModel.showLog) {
-                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    ExtendedFloatingActionButton(
-                        onClick = { viewModel.saveLogToFile() },
-                        icon = { Icon(Icons.Default.Save, "保存") },
-                        text = { Text("保存") }
-                    )
-                    when (viewModel.bookingState) {
-                        BookingState.RUNNING -> {
-                            ExtendedFloatingActionButton(
-                                onClick = { viewModel.stopBooking() },
-                                icon = { Icon(Icons.Default.Stop, "停止") },
-                                text = { Text("停止") }
-                            )
-                        }
-                        else -> {
-                            ExtendedFloatingActionButton(
-                                onClick = { viewModel.backToForm() },
-                                icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回") },
-                                text = { Text("返回") }
-                            )
-                        }
+            when (viewModel.bookingState) {
+                BookingState.IDLE -> {
+
+                }
+                BookingState.CONFIG -> {
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        ExtendedFloatingActionButton(
+                            onClick = { viewModel.bookingState = BookingState.IDLE },
+                            icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回") },
+                            text = { Text("返回") }
+                        )
+                        ExtendedFloatingActionButton(
+                            onClick = { viewModel.startBooking() },
+                            icon = { Icon(Icons.Default.PlayArrow, "开始") },
+                            text = { Text("开始") }
+                        )
                     }
                 }
-            } else {
-                ExtendedFloatingActionButton(
-                    onClick = { viewModel.startBooking() },
-                    icon = { Icon(Icons.Default.PlayArrow, "开始预约") },
-                    text = { Text("开始预约") }
+
+                BookingState.RUNNING -> {
+                    ExtendedFloatingActionButton(
+                        onClick = { viewModel.stopBooking() },
+                        icon = { Icon(Icons.Default.Stop, "停止") },
+                        text = { Text("停止") }
+                    )
+                }
+                BookingState.STOPPED -> ExtendedFloatingActionButton(
+                    onClick = {  },
+                    icon = { Icon(Icons.Default.Stop, "停止") },
+                    text = { Text("停止") }
                 )
             }
+
+//            if (viewModel.showLog) {
+//                Column(
+//                    horizontalAlignment = Alignment.End,
+//                    verticalArrangement = Arrangement.spacedBy(16.dp)
+//                ) {
+//                    ExtendedFloatingActionButton(
+//                        onClick = { viewModel.saveLogToFile() },
+//                        icon = { Icon(Icons.Default.Save, "保存") },
+//                        text = { Text("保存") }
+//                    )
+//                    when (viewModel.bookingState) {
+//                        BookingState.RUNNING -> {
+//                            ExtendedFloatingActionButton(
+//                                onClick = { viewModel.stopBooking() },
+//                                icon = { Icon(Icons.Default.Stop, "停止") },
+//                                text = { Text("停止") }
+//                            )
+//                        }
+//
+//                        else -> {
+//                            ExtendedFloatingActionButton(
+//                                onClick = { viewModel.backToForm() },
+//                                icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回") },
+//                                text = { Text("返回") }
+//                            )
+//                        }
+//                    }
+//                }
+//            } else {
+//                ExtendedFloatingActionButton(
+//                    onClick = { viewModel.startBooking() },
+//                    icon = { Icon(Icons.Default.PlayArrow, "开始预约") },
+//                    text = { Text("开始预约") }
+//                )
+//            }
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
-            AnimatedVisibility(visible = !viewModel.showLog, enter = fadeIn(), exit = fadeOut()) {
-                FormContent(viewModel)
+//        Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
+//            AnimatedVisibility(visible = !viewModel.showLog, enter = fadeIn(), exit = fadeOut()) {
+//                FormContent(viewModel)
+//            }
+//            AnimatedVisibility(visible = viewModel.showLog, enter = fadeIn(), exit = fadeOut()) {
+//                LogContent(viewModel)
+//            }
+        when (viewModel.bookingState) {
+            BookingState.IDLE -> WelcomeScreen(
+                viewModel,
+                modifier = Modifier.padding(paddingValues)
+            ) {
+                viewModel.bookingState = BookingState.CONFIG
             }
-            AnimatedVisibility(visible = viewModel.showLog, enter = fadeIn(), exit = fadeOut()) {
-                LogContent(viewModel)
+
+            BookingState.CONFIG -> ConfigScreen(
+                viewModel,
+                modifier = Modifier.padding(paddingValues)
+            ) {
+//                    viewModel.startConfig()
             }
+
+            BookingState.RUNNING -> RunningScreen(
+                viewModel,
+                modifier = Modifier.padding(paddingValues)
+            )
+
+            BookingState.STOPPED -> RunningScreen(
+                viewModel,
+                modifier = Modifier.padding(paddingValues)
+            )
         }
+//        }
     }
 }
 

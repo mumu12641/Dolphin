@@ -36,7 +36,6 @@ class MainViewModel : ViewModel() {
     val logMessages = mutableStateListOf<LogEntry>()
 
     var bookingState by mutableStateOf(BookingState.IDLE)
-        private set
 
     fun getCourtCountForSelectedVenue(): Int {
         return Constant.VENUE_COURT_COUNTS[selectedVenue] ?: 0
@@ -57,6 +56,25 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    fun clearSelectedCourts() {
+        selectedCourts.clear()
+    }
+
+
+    fun startConfig() {
+        bookingState = BookingState.CONFIG
+    }
+
+    fun getCourts(): MutableList<Int> {
+        val courtCount = getCourtCountForSelectedVenue()
+        val courts = selectedCourts.toMutableList()
+        if (courtCount > 0 && courts.size < courtCount) {
+            val remainingCourts = (1..courtCount).filter { it !in courts }.shuffled()
+            courts.addAll(remainingCourts)
+        }
+        return courts
+    }
+
     fun startBooking() {
         logMessages.clear()
         showLog = true
@@ -75,18 +93,12 @@ class MainViewModel : ViewModel() {
                 return@launch
             }
 
-            val courtCount = getCourtCountForSelectedVenue()
-            val courts = selectedCourts.toMutableList()
-            if (courtCount > 0 && courts.size < courtCount) {
-                val remainingCourts = (1..courtCount).filter { it !in courts }.shuffled()
-                courts.addAll(remainingCourts)
-            }
 
             val priorityList =
-                courts.mapNotNull { Constant.COURT_IDS[selectedVenue]?.get(it) }.joinToString(",")
+                getCourts().mapNotNull { Constant.COURT_IDS[selectedVenue]?.get(it) }.joinToString(",")
 
             val executablePath =
-                File(System.getProperty("user.dir"),"Goodminton.exe").absolutePath
+                File(System.getProperty("user.dir"), "Goodminton.exe").absolutePath
 
 
             val bookingInfo = BookingInfo(
@@ -134,7 +146,7 @@ class MainViewModel : ViewModel() {
                     name.startsWith("dolphin_") && name.endsWith(".log")
                 } ?: emptyArray()
                 val nextNumber = existingLogFiles.size + 1
-                val fileNumber = String.format("%03d", nextNumber) 
+                val fileNumber = String.format("%03d", nextNumber)
                 val logFile = File(logDir, "dolphin_${fileNumber}_${timestamp}.log")
                 logFile.bufferedWriter().use { writer ->
                     logMessages.forEach {
@@ -155,7 +167,7 @@ class MainViewModel : ViewModel() {
 }
 
 enum class BookingState {
-    IDLE, RUNNING, STOPPED
+    IDLE, RUNNING, STOPPED, CONFIG
 }
 
 enum class LogType {
