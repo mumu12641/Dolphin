@@ -36,6 +36,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -55,9 +57,10 @@ fun RunningScreen(
     viewModel: MainViewModel,
     modifier: Modifier
 ) {
-    val venue = viewModel.selectedVenue
-    val timeSlot = viewModel.selectedTimeSlot
-    val courts = viewModel.selectedCourts
+    val mainUiState by viewModel.uiState.collectAsState()
+    val venue = mainUiState.selectedVenue
+    val timeSlot = mainUiState.selectedTimeSlot
+    val courts = mainUiState.selectedCourts
 
 
     Column(
@@ -309,7 +312,7 @@ fun RunningScreen(
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
-                LogContent(viewModel.logMessages)
+                LogContent(mainUiState.logMessages)
             }
         }
     }

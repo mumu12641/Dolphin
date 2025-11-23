@@ -1,18 +1,21 @@
 package io.github.mumu12641.dolphin.ui.page.main
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import io.github.mumu12641.dolphin.data.UserPreferencesRepository
+import io.github.mumu12641.dolphin.di.Graph
 import io.github.mumu12641.dolphin.model.BookingInfo
+import io.github.mumu12641.dolphin.model.HistoryEntry
 import io.github.mumu12641.dolphin.service.BookingService
 import io.github.mumu12641.dolphin.util.Constant
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import moe.tlaster.precompose.viewmodel.ViewModel
 import moe.tlaster.precompose.viewmodel.viewModelScope
 import java.io.File
@@ -20,77 +23,148 @@ import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 
+sealed class MainAction {
+    data class SelectVenue(val venue: String) : MainAction()
+    data class ClickCourt(val courtNumber: Int) : MainAction()
+    data class SelectTimeSlot(val timeSlot: String) : MainAction()
+    data object ClearSelectedCourts : MainAction()
+    data object StartConfig : MainAction()
+    data object StartBooking : MainAction()
+    data object StopBooking : MainAction()
+    data object BackToHome : MainAction()
+    data object SaveLogToFile : MainAction()
+}
+
+data class MainUiState(
+    val username: String = "",
+    val password: String = "",
+    val history: List<HistoryEntry> = emptyList(),
+    val selectedVenue: String = Constant.VENUES.first(),
+    val selectedCourts: List<Int> = emptyList(),
+    val selectedTimeSlot: String = Constant.TIME_SLOTS[5],
+    val logMessages: List<LogEntry> = emptyList(),
+    val bookingState: BookingState = BookingState.IDLE,
+    val venues: List<String> = Constant.VENUES,
+    val courtCount: Int = Constant.VENUE_COURT_COUNTS[Constant.VENUES.first()]!!
+)
+
+
+@OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModel : ViewModel() {
 
-    val venues = Constant.VENUES
-    val timeSlots = Constant.TIME_SLOTS
+    private val historyRepository = Graph.historyRepository
 
-    var selectedVenue by mutableStateOf(venues.first())
-        private set
+    private val _uiState = MutableStateFlow(MainUiState())
+    val uiState = _uiState.asStateFlow()
 
-    val selectedCourts = mutableStateListOf<Int>()
 
-    var selectedTimeSlot by mutableStateOf(timeSlots[5])
-
-    var showLog by mutableStateOf(false)
-    val logMessages = mutableStateListOf<LogEntry>()
-
-    var bookingState by mutableStateOf(BookingState.IDLE)
-
-    fun getCourtCountForSelectedVenue(): Int {
-        return Constant.VENUE_COURT_COUNTS[selectedVenue] ?: 0
+    init {
+        viewModelScope.launch {
+            UserPreferencesRepository.userFlow
+                .flatMapLatest { user ->
+                    val username = user.first
+                    val password = user.second
+                    if (username.isNotBlank()) {
+                        historyRepository.getHistoryByUsername(username).map { userHistory ->
+                            _uiState.value.copy(
+                                username = username,
+                                password = password,
+                                history = userHistory?.history ?: emptyList()
+                            )
+                        }
+                    } else {
+                        flowOf(
+                            _uiState.value.copy(
+                                username = "",
+                                password = "",
+                                history = emptyList()
+                            )
+                        )
+                    }
+                }
+                .collect { state ->
+                    _uiState.value = state
+                }
+        }
     }
 
+    fun onAction(action: MainAction) {
+        when (action) {
+            is MainAction.SelectVenue -> onVenueSelected(action.venue)
+            is MainAction.ClickCourt -> onCourtClicked(action.courtNumber)
+            is MainAction.SelectTimeSlot -> _uiState.update { it.copy(selectedTimeSlot = action.timeSlot) }
+            MainAction.ClearSelectedCourts -> _uiState.update { it.copy(selectedCourts = emptyList()) }
+            MainAction.StartConfig -> _uiState.update { it.copy(bookingState = BookingState.CONFIG) }
+            MainAction.StartBooking -> startBooking()
+            MainAction.StopBooking -> stopBooking()
+            MainAction.BackToHome -> _uiState.update {
+                it.copy(
+                    bookingState = BookingState.IDLE
+                )
+            }
+
+            MainAction.SaveLogToFile -> saveLogToFile()
+        }
+    }
+
+
     fun onVenueSelected(venue: String) {
-        if (selectedVenue != venue) {
-            selectedVenue = venue
-            selectedCourts.clear()
+        if (_uiState.value.selectedVenue != venue) {
+            _uiState.update {
+                it.copy(
+                    selectedVenue = venue,
+                    selectedCourts = emptyList(),
+                    courtCount = Constant.VENUE_COURT_COUNTS[venue] ?: 0
+                )
+            }
         }
     }
 
     fun onCourtClicked(courtNumber: Int) {
-        if (selectedCourts.contains(courtNumber)) {
-            selectedCourts.remove(courtNumber)
+        val newSelectedCourts = _uiState.value.selectedCourts.toMutableList()
+        if (newSelectedCourts.contains(courtNumber)) {
+            newSelectedCourts.remove(courtNumber)
         } else {
-            selectedCourts.add(courtNumber)
+            newSelectedCourts.add(courtNumber)
         }
+        _uiState.update { it.copy(selectedCourts = newSelectedCourts) }
     }
 
-    fun clearSelectedCourts() {
-        selectedCourts.clear()
-    }
-
-
-    fun startConfig() {
-        bookingState = BookingState.CONFIG
-    }
 
     fun startBooking() {
-        logMessages.clear()
-        showLog = true
-        bookingState = BookingState.RUNNING
+        _uiState.update {
+            it.copy(
+                logMessages = emptyList(),
+                bookingState = BookingState.RUNNING
+            )
+        }
 
         viewModelScope.launch {
-            val user = UserPreferencesRepository.userFlow.first()
-            val username = user.first
-            val password = user.second
+//            val user = UserPreferencesRepository.userFlow.first()
+//            val username = user.first
+//            val password = user.second
+            val username = _uiState.value.username
+            val password = _uiState.value.password
 
             if (username.isBlank() || password.isBlank()) {
                 addLog("❌ 用户信息未填写。请前往设置页面填写。", LogType.ERROR)
-                withContext(Dispatchers.Main) {
-                    bookingState = BookingState.STOPPED
-                }
+                _uiState.update { it.copy(bookingState = BookingState.STOPPED) }
                 return@launch
             }
 
-            val courtCount = getCourtCountForSelectedVenue()
-            val courts = selectedCourts.toMutableList()
-            if (courtCount > 0 && courts.size < courtCount) {
-                val remainingCourts = (1..courtCount).filter { it !in courts }.shuffled()
-                selectedCourts.addAll(remainingCourts)
+            val courts = _uiState.value.selectedCourts.toMutableList()
+            if (_uiState.value.courtCount > 0 && courts.size < _uiState.value.courtCount) {
+                val remainingCourts =
+                    (1.._uiState.value.courtCount).filter { it !in courts }.shuffled()
+                courts.addAll(remainingCourts)
+                _uiState.update { it.copy(selectedCourts = courts) }
             }
             val priorityList =
-                selectedCourts.mapNotNull { Constant.COURT_IDS[selectedVenue]?.get(it) }
+                _uiState.value.selectedCourts.mapNotNull {
+                    Constant.COURT_IDS[_uiState.value.selectedVenue]?.get(
+                        it
+                    )
+                }
                     .joinToString(",")
 
 //            val executablePath =
@@ -99,8 +173,8 @@ class MainViewModel : ViewModel() {
 
 
             val bookingInfo = BookingInfo(
-                venueId = Constant.VENUE_IDS[selectedVenue]!!,
-                startTime = selectedTimeSlot.split("-").first(),
+                venueId = Constant.VENUE_IDS[_uiState.value.selectedVenue]!!,
+                startTime = _uiState.value.selectedTimeSlot.split("-").first(),
                 priorityList = priorityList,
                 username = username,
                 password = password
@@ -110,11 +184,11 @@ class MainViewModel : ViewModel() {
                 executablePath = executablePath,
                 bookingInfo = bookingInfo
             ).onCompletion {
-                withContext(Dispatchers.Main) {
-                    bookingState = BookingState.STOPPED
-                }
+                _uiState.update { it.copy(bookingState = BookingState.STOPPED) }
             }.collect { logEntry ->
-                logMessages.add(logEntry)
+                _uiState.update {
+                    it.copy(logMessages = it.logMessages + logEntry)
+                }
             }
         }
     }
@@ -122,13 +196,9 @@ class MainViewModel : ViewModel() {
     fun stopBooking() {
         BookingService.stop()
         addLog("🛑 预约已中止。", LogType.INFO)
-        bookingState = BookingState.STOPPED
+        _uiState.update { it.copy(bookingState = BookingState.STOPPED) }
     }
 
-    fun backToForm() {
-        showLog = false
-        bookingState = BookingState.IDLE
-    }
 
     fun saveLogToFile() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -146,7 +216,7 @@ class MainViewModel : ViewModel() {
                 val fileNumber = String.format("%03d", nextNumber)
                 val logFile = File(logDir, "dolphin_${fileNumber}_${timestamp}.log")
                 logFile.bufferedWriter().use { writer ->
-                    logMessages.forEach {
+                    _uiState.value.logMessages.forEach {
                         writer.write("[${it.timestamp}] ${it.message}\n")
                     }
                 }
@@ -159,7 +229,9 @@ class MainViewModel : ViewModel() {
 
     private fun addLog(message: String, type: LogType) {
         val timestamp = SimpleDateFormat("yyyy-mm-dd HH:mm:ss.SSS").format(Date())
-        logMessages.add(LogEntry(message, timestamp, type))
+        _uiState.update {
+            it.copy(logMessages = it.logMessages + LogEntry(message, timestamp, type))
+        }
     }
 }
 

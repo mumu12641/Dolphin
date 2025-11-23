@@ -30,6 +30,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +48,7 @@ fun ConfigScreen(
     viewModel: MainViewModel,
     modifier: Modifier = Modifier
 ) {
+    val mainUiState by viewModel.uiState.collectAsState()
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -87,8 +90,8 @@ fun ConfigScreen(
                                 .padding(4.dp),
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            viewModel.venues.forEach { v ->
-                                val isSelected = viewModel.selectedVenue == v
+                            mainUiState.venues.forEach { v ->
+                                val isSelected = mainUiState.selectedVenue == v
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
@@ -138,12 +141,12 @@ fun ConfigScreen(
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("优先级队列", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
-                            if (viewModel.selectedCourts.isNotEmpty()) {
+                            if (mainUiState.selectedCourts.isNotEmpty()) {
                                 Text(
                                     "清空",
                                     color = Color(0xFFB3261E),
                                     fontSize = 11.sp,
-                                    modifier = Modifier.clickable { viewModel.clearSelectedCourts() }
+                                    modifier = Modifier.clickable { viewModel.onAction(MainAction.ClearSelectedCourts) }
                                 )
                             }
                         }
@@ -152,16 +155,16 @@ fun ConfigScreen(
 
                         // Court Grid
                         LazyVerticalGrid(
-                            columns = GridCells.Fixed(VENUE_COLS[viewModel.selectedVenue]!!),
+                            columns = GridCells.Fixed(VENUE_COLS[mainUiState.selectedVenue]!!),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
-                            items(viewModel.getCourtCountForSelectedVenue()) { index ->
+                            items(mainUiState.courtCount) { index ->
                                 val courtNumber = index + 1
-                                val isSelected = viewModel.selectedCourts.contains(courtNumber)
+                                val isSelected = mainUiState.selectedCourts.contains(courtNumber)
                                 val priorityIndex =
-                                    if (isSelected) viewModel.selectedCourts.indexOf(courtNumber) + 1 else 0
+                                    if (isSelected) mainUiState.selectedCourts.indexOf(courtNumber) + 1 else 0
                                 Box(
                                     modifier = Modifier
                                         .height(60.dp)
@@ -180,7 +183,7 @@ fun ConfigScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        courtNumber .toString(),
+                                        courtNumber.toString(),
                                         color = if (isSelected) Color.White else Color.Gray,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -247,7 +250,7 @@ fun ConfigScreen(
 
                         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(TIME_SLOTS) { time ->
-                                val isSelected = viewModel.selectedTimeSlot == time
+                                val isSelected = mainUiState.selectedTimeSlot == time
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -260,7 +263,13 @@ fun ConfigScreen(
                                             ),
                                             RoundedCornerShape(12.dp)
                                         )
-                                        .clickable { viewModel.selectedTimeSlot = time }
+                                        .clickable {
+                                            viewModel.onAction(
+                                                MainAction.SelectTimeSlot(
+                                                    time
+                                                )
+                                            )
+                                        }
                                         .padding(12.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically

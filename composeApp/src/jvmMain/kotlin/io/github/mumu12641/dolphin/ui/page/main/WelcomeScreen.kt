@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mumu12641.dolphin.ui.page.main.BookingState
+import io.github.mumu12641.dolphin.ui.page.main.MainAction
 import io.github.mumu12641.dolphin.ui.page.main.MainViewModel
 
 @Composable
@@ -53,7 +54,7 @@ fun WelcomeScreen(viewModel: MainViewModel, modifier: Modifier) {
             modifier = Modifier
                 .fillMaxWidth()
                 .height(220.dp)
-                .clickable { viewModel.bookingState = BookingState.CONFIG },
+                .clickable { viewModel.onAction(MainAction.StartConfig) },
             shape = RoundedCornerShape(32.dp),
 
             ) {
