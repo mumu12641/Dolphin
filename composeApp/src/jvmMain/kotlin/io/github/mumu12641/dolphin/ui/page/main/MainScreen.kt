@@ -26,8 +26,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import io.github.mumu12641.dolphin.main
-import io.github.mumu12641.dolphin.ui.page.WelcomeScreen
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)

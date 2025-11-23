@@ -59,9 +59,15 @@ object BookingService {
                     emit(logEntry)
                 }
             }
-
-            process?.waitFor()
-
+            val status = process?.waitFor()
+            println(status)
+            println(status == 0)
+            if (status == 0)
+                emit(LogEntry(type = LogType.SUCCESS))
+            else if(status == 1)
+                emit(LogEntry(type = LogType.FAILED))
+            else
+                emit(LogEntry(type = LogType.ABORT))
         } catch (e: Exception) {
             emit(
                 LogEntry(
@@ -70,6 +76,7 @@ object BookingService {
                     LogType.ERROR
                 )
             )
+            emit(LogEntry(type = LogType.FAILED))
         }
     }.flowOn(Dispatchers.IO)
 

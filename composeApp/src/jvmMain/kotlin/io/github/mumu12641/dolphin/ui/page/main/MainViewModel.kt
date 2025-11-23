@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import moe.tlaster.precompose.viewmodel.ViewModel
 import moe.tlaster.precompose.viewmodel.viewModelScope
 import java.io.File
@@ -140,9 +141,6 @@ class MainViewModel : ViewModel() {
         }
 
         viewModelScope.launch {
-//            val user = UserPreferencesRepository.userFlow.first()
-//            val username = user.first
-//            val password = user.second
             val username = _uiState.value.username
             val password = _uiState.value.password
 
@@ -171,7 +169,6 @@ class MainViewModel : ViewModel() {
 //                File(System.getProperty("user.dir"), "Goodminton.exe").absolutePath
             val executablePath = File("D:\\Softwares\\Dolphin", "Goodminton.exe").absolutePath
 
-
             val bookingInfo = BookingInfo(
                 venueId = Constant.VENUE_IDS[_uiState.value.selectedVenue]!!,
                 startTime = _uiState.value.selectedTimeSlot.split("-").first(),
@@ -184,10 +181,30 @@ class MainViewModel : ViewModel() {
                 executablePath = executablePath,
                 bookingInfo = bookingInfo
             ).onCompletion {
-                _uiState.update { it.copy(bookingState = BookingState.STOPPED) }
-            }.collect { logEntry ->
                 _uiState.update {
-                    it.copy(logMessages = it.logMessages + logEntry)
+                    it.copy(bookingState = BookingState.STOPPED)
+                }
+            }.collect { logEntry ->
+                when (logEntry.type) {
+                    LogType.SUCCESS, LogType.FAILED, LogType.ABORT -> {
+                        val statusCode =
+                            if (logEntry.type == LogType.SUCCESS) 0 else if (logEntry.type == LogType.FAILED) 1 else 2
+                        val historyEntry = HistoryEntry(
+                            venue = _uiState.value.selectedVenue,
+                            priority = _uiState.value.selectedCourts,
+                            timeSlot = _uiState.value.selectedTimeSlot,
+                            status = statusCode
+                        )
+                        withContext(Dispatchers.IO) {
+                            historyRepository.addHistoryEntry(_uiState.value.username, historyEntry)
+                        }
+                    }
+
+                    else -> {
+                        _uiState.update {
+                            it.copy(logMessages = it.logMessages + logEntry)
+                        }
+                    }
                 }
             }
         }
@@ -240,12 +257,12 @@ enum class BookingState {
 }
 
 enum class LogType {
-    INFO, WARNING, DEBUG, ERROR
+    INFO, WARNING, DEBUG, ERROR, SUCCESS, FAILED, ABORT
 }
 
 data class LogEntry(
-    val message: String,
-    val timestamp: String,
-    val type: LogType,
+    val message: String = "",
+    val timestamp: String = "",
+    val type: LogType = LogType.INFO,
     val exeLog: Boolean = false
 )

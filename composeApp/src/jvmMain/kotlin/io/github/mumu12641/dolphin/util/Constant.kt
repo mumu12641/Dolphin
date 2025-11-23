@@ -38,4 +38,11 @@ object Constant {
     )
 
     val VENUE_COURT_COUNTS = COURT_IDS.mapValues { it.value.size }
+
+    val HISTORY_TYPE_MSG  = mapOf(
+        0 to "预约成功",
+        1 to "预约失败",
+        2 to "中途终止"
+
+    )
 }

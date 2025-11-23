@@ -339,6 +339,7 @@ fun LogContent(logMessages: List<LogEntry>) {
                 LogType.ERROR -> MaterialTheme.colorScheme.error
                 LogType.WARNING -> MaterialTheme.colorScheme.tertiary
                 LogType.DEBUG -> MaterialTheme.colorScheme.secondary
+                else -> MaterialTheme.colorScheme.primary
             }
             Row(verticalAlignment = Alignment.Top) {
                 val annotatedString = buildAnnotatedString {
