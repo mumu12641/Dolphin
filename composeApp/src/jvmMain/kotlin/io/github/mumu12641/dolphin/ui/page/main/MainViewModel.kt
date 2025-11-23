@@ -65,16 +65,6 @@ class MainViewModel : ViewModel() {
         bookingState = BookingState.CONFIG
     }
 
-    fun getCourts(): MutableList<Int> {
-        val courtCount = getCourtCountForSelectedVenue()
-        val courts = selectedCourts.toMutableList()
-        if (courtCount > 0 && courts.size < courtCount) {
-            val remainingCourts = (1..courtCount).filter { it !in courts }.shuffled()
-            courts.addAll(remainingCourts)
-        }
-        return courts
-    }
-
     fun startBooking() {
         logMessages.clear()
         showLog = true
@@ -93,12 +83,19 @@ class MainViewModel : ViewModel() {
                 return@launch
             }
 
-
+            val courtCount = getCourtCountForSelectedVenue()
+            val courts = selectedCourts.toMutableList()
+            if (courtCount > 0 && courts.size < courtCount) {
+                val remainingCourts = (1..courtCount).filter { it !in courts }.shuffled()
+                selectedCourts.addAll(remainingCourts)
+            }
             val priorityList =
-                getCourts().mapNotNull { Constant.COURT_IDS[selectedVenue]?.get(it) }.joinToString(",")
+                selectedCourts.mapNotNull { Constant.COURT_IDS[selectedVenue]?.get(it) }
+                    .joinToString(",")
 
-            val executablePath =
-                File(System.getProperty("user.dir"), "Goodminton.exe").absolutePath
+//            val executablePath =
+//                File(System.getProperty("user.dir"), "Goodminton.exe").absolutePath
+            val executablePath = File("D:\\Softwares\\Dolphin", "Goodminton.exe").absolutePath
 
 
             val bookingInfo = BookingInfo(

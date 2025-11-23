@@ -10,18 +10,22 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.rounded.ArrowRight
 import androidx.compose.material.icons.rounded.AdsClick
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Place
+import androidx.compose.material.icons.rounded.RocketLaunch
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material.icons.rounded.Update
 import androidx.compose.material3.Card
@@ -31,14 +35,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.mumu12641.dolphin.ui.page.main.LogEntry
 import io.github.mumu12641.dolphin.ui.page.main.LogType
 import io.github.mumu12641.dolphin.ui.page.main.MainViewModel
 
@@ -49,7 +57,8 @@ fun RunningScreen(
 ) {
     val venue = viewModel.selectedVenue
     val timeSlot = viewModel.selectedTimeSlot
-    val courts = viewModel.getCourts()
+    val courts = viewModel.selectedCourts
+
 
     Column(
         modifier = modifier
@@ -72,10 +81,19 @@ fun RunningScreen(
                     .background(MaterialTheme.colorScheme.primary)
             ) {
                 // Content
+                Icon(
+                    imageVector = Icons.Rounded.RocketLaunch,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.1f),
+                    modifier = Modifier
+                        .size(160.dp)
+                        .align(Alignment.BottomEnd)
+                        .offset(x = 20.dp, y = 20.dp)
+                )
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp),
+                        .padding(20.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -87,20 +105,20 @@ fun RunningScreen(
                             Icon(
                                 Icons.Rounded.Timer,
                                 null,
-                                tint = Color.White,
+                                tint = MaterialTheme.colorScheme.onPrimary,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 "RUNNING",
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onPrimary,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
                         Text(
                             "抢场中",
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onPrimary,
                             fontSize = 36.sp,
                             fontWeight = FontWeight.Bold,
                         )
@@ -110,13 +128,17 @@ fun RunningScreen(
                     Box(
                         modifier = Modifier
                             .size(80.dp)
-                            .border(4.dp, Color.White.copy(alpha = 0.2f), CircleShape),
+                            .border(
+                                4.dp,
+                                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f),
+                                CircleShape
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.Rounded.Bolt,
                             null,
-                            tint = Color.White,
+                            tint = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(32.dp)
                         )
                     }
@@ -130,11 +152,15 @@ fun RunningScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = androidx.compose.foundation.BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.outline
-            )
+            colors = CardDefaults.cardColors(
+                containerColor =
+                    MaterialTheme.colorScheme.background
+            ),
+//            border = androidx.compose.foundation.BorderStroke(
+//                1.dp,
+//                MaterialTheme.colorScheme.outline
+//            )
+            elevation = CardDefaults.cardElevation(8.dp)
         ) {
             Row(modifier = Modifier.height(IntrinsicSize.Min)) {
                 // Left: Venue
@@ -151,12 +177,12 @@ fun RunningScreen(
                             Icons.Rounded.Place,
                             null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             "TARGET VENUE",
-                            fontSize = 10.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -164,11 +190,10 @@ fun RunningScreen(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         venue,
-                        fontSize = 18.sp,
+                        fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Text("2023-11-21 (周五)", fontSize = 12.sp, color = Color.Gray)
                 }
 
                 // Right: Details
@@ -183,12 +208,16 @@ fun RunningScreen(
                         Icon(
                             Icons.Rounded.Update,
                             null,
-                            tint = Color.Gray,
+                            tint = MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Column {
-                            Text("目标时间段", fontSize = 12.sp, color = Color.Gray)
+                            Text(
+                                "目标时间段",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
                             Spacer(modifier = Modifier.height(4.dp))
                             Surface(
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -196,7 +225,7 @@ fun RunningScreen(
                             ) {
                                 Text(
                                     timeSlot,
-                                    color = Color.White,
+                                    color = MaterialTheme.colorScheme.onPrimary,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -210,22 +239,24 @@ fun RunningScreen(
                         Icon(
                             Icons.Rounded.AdsClick,
                             null,
-                            tint = Color.Gray,
+                            tint = MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("策略:", fontSize = 12.sp, color = Color.Gray)
+                        Text("策略:", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
                         Spacer(modifier = Modifier.width(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             courts.forEachIndexed { index, i ->
-                                Box(
+                                Row(
                                     modifier = Modifier
+                                        .padding(start = 4.dp)
                                         .size(20.dp)
                                         .background(
                                             if (index == 0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
                                             RoundedCornerShape(4.dp)
                                         ),
-                                    contentAlignment = Alignment.Center
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
                                 ) {
                                     Text(
                                         i.toString(),
@@ -242,7 +273,6 @@ fun RunningScreen(
                                     )
                                 }
                             }
-
                         }
                     }
                 }
@@ -255,11 +285,8 @@ fun RunningScreen(
         Card(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFDF8FD)),
-            border = androidx.compose.foundation.BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.outline
-            )
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+            elevation = CardDefaults.cardElevation(8.dp)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Row(
@@ -267,80 +294,71 @@ fun RunningScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.size(8.dp).background(Color.Green, CircleShape))
+                        Icon(
+                            Icons.AutoMirrored.Filled.ReceiptLong,
+                            contentDescription = "日志",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             "日志",
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
-                            color = Color.Gray
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
-                    Text(
-                        "保存",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
                 }
                 Spacer(modifier = Modifier.height(12.dp))
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(viewModel.logMessages) { logEntry ->
-                        val textColor = when (logEntry.type) {
-                            LogType.INFO -> MaterialTheme.colorScheme.primary
-                            LogType.ERROR -> MaterialTheme.colorScheme.error
-                            LogType.WARNING -> MaterialTheme.colorScheme.tertiary
-                            LogType.DEBUG -> MaterialTheme.colorScheme.secondary
-                        }
-                        val backgroundColor = when (logEntry.type) {
-                            LogType.INFO -> MaterialTheme.colorScheme.primaryContainer
-                            LogType.ERROR -> MaterialTheme.colorScheme.errorContainer
-                            LogType.WARNING -> MaterialTheme.colorScheme.tertiaryContainer
-                            LogType.DEBUG -> MaterialTheme.colorScheme.secondaryContainer
-                        }
-                        LogItem(
-                            logEntry.timestamp,
-                            logEntry.type.toString(),
-                            logEntry.timestamp,
-                            backgroundColor,
-                            textColor,
-                            logEntry.exeLog,
-                        )
-                    }
-                }
+                LogContent(viewModel.logMessages)
             }
         }
     }
 }
 
 @Composable
-fun LogItem(
-    time: String,
-    type: String,
-    msg: String,
-    bgColor: Color,
-    textColor: Color,
-    exeLog: Boolean
-) {
-    Row(verticalAlignment = Alignment.Top) {
-        Text(time, fontSize = 12.sp, color = Color.Gray, modifier = Modifier.width(60.dp))
-        Surface(color = bgColor, shape = RoundedCornerShape(4.dp)) {
-            Text(
-                type,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                color = textColor,
-                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-            )
+fun LogContent(logMessages: List<LogEntry>) {
+    val lazyListState = rememberLazyListState()
+    LaunchedEffect(logMessages.size) {
+        if (logMessages.isNotEmpty()) {
+            lazyListState.animateScrollToItem(logMessages.lastIndex)
         }
-        Spacer(modifier = Modifier.width(8.dp))
-        val text = if (exeLog) msg else "- $type - $msg"
-        Text(
-            text,
-            fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+    }
+
+    LazyColumn(
+        state = lazyListState,
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        items(logMessages) { logEntry ->
+            val timestampColor = MaterialTheme.colorScheme.onSurfaceVariant
+            val messageColor = when (logEntry.type) {
+                LogType.INFO -> MaterialTheme.colorScheme.primary
+                LogType.ERROR -> MaterialTheme.colorScheme.error
+                LogType.WARNING -> MaterialTheme.colorScheme.tertiary
+                LogType.DEBUG -> MaterialTheme.colorScheme.secondary
+            }
+            Row(verticalAlignment = Alignment.Top) {
+                val annotatedString = buildAnnotatedString {
+                    withStyle(style = SpanStyle(color = timestampColor)) {
+                        append("${logEntry.timestamp} ")
+                    }
+                    withStyle(style = SpanStyle(color = messageColor)) {
+                        append(
+                            if (!logEntry.exeLog) {
+                                "- ${logEntry.type} - ${logEntry.message}"
+                            } else {
+                                logEntry.message
+                            }
+                        )
+                    }
+                }
+
+                Text(
+                    text = annotatedString,
+                    modifier = Modifier.padding(4.dp),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
     }
 }

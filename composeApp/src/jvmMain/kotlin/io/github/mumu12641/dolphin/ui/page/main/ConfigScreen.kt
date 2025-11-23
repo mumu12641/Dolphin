@@ -44,47 +44,21 @@ import io.github.mumu12641.dolphin.util.Constant.VENUE_COLS
 @Composable
 fun ConfigScreen(
     viewModel: MainViewModel,
-    modifier: Modifier = Modifier,
-    startBooking: () -> Unit
+    modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFFFDF8FD))
     ) {
-        // Header
-//        Row(
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .padding(24.dp),
-//            horizontalArrangement = Arrangement.SpaceBetween,
-//            verticalAlignment = Alignment.CenterVertically
-//        ) {
-//            Button(
-//                onClick = { },
-//                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-//                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
-//            ) {
-//                Icon(
-//                    Icons.Rounded.RocketLaunch,
-//                    contentDescription = null,
-//                    modifier = Modifier.size(18.dp)
-//                )
-//                Spacer(modifier = Modifier.width(8.dp))
-//                Text("启动任务")
-//            }
-//        }
 
-        // Main Content - Split View (Column on Mobile, but let's use Column with weights for structure)
         Row(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 24.dp),
-//            verticalArrangement = Arrangement.spacedBy(16.dp)
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 1. Venue & Priority Section (Weight 1.5)
             Card(
                 modifier = Modifier
                     .weight(1f)
@@ -97,14 +71,12 @@ fun ConfigScreen(
                 )
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    // Top Bar Color
                     Box(
                         modifier = Modifier.fillMaxWidth().height(4.dp)
                             .background(MaterialTheme.colorScheme.primary)
                     )
 
                     Column(modifier = Modifier.padding(16.dp)) {
-                        // Venue Tabs
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -151,7 +123,6 @@ fun ConfigScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Priority Queue Display
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -186,7 +157,8 @@ fun ConfigScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
-                            items(viewModel.getCourtCountForSelectedVenue()) { courtNumber ->
+                            items(viewModel.getCourtCountForSelectedVenue()) { index ->
+                                val courtNumber = index + 1
                                 val isSelected = viewModel.selectedCourts.contains(courtNumber)
                                 val priorityIndex =
                                     if (isSelected) viewModel.selectedCourts.indexOf(courtNumber) + 1 else 0
@@ -208,7 +180,7 @@ fun ConfigScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        (courtNumber + 1).toString(),
+                                        courtNumber .toString(),
                                         color = if (isSelected) Color.White else Color.Gray,
                                         fontWeight = FontWeight.Bold
                                     )
