@@ -6,11 +6,13 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.composeHotReload)
     alias(libs.plugins.kotlinx.serialization)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.androidx.room)
 }
 
 kotlin {
     jvm()
-    
+
     sourceSets {
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -35,6 +37,11 @@ kotlin {
             implementation(libs.bouncycastle.prov)
             implementation(libs.slf4j.simple)
 
+            implementation(libs.androidx.room.runtime)
+            implementation(libs.androidx.sqlite.bundled)
+            implementation(libs.gson.core)
+
+
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -46,7 +53,13 @@ kotlin {
     }
 }
 
+room {
+    schemaDirectory("$projectDir/schemas")
+}
 
+dependencies {
+    add("kspJvm", libs.androidx.room.compiler)
+}
 compose.desktop {
     application {
         mainClass = "io.github.mumu12641.dolphin.MainKt"
