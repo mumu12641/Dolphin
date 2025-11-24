@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Assignment
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AdsClick
 import androidx.compose.material.icons.rounded.Block
@@ -41,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,7 +50,7 @@ import io.github.mumu12641.dolphin.model.HistoryEntry
 import io.github.mumu12641.dolphin.util.Constant.HISTORY_TYPE_MSG
 
 @Composable
-fun WelcomeScreen(viewModel: MainViewModel, modifier: Modifier) {
+fun WelcomeScreen(viewModel: MainViewModel, modifier: Modifier= Modifier) {
     val mainUiState by viewModel.uiState.collectAsState()
     val history = mainUiState.history
     Column(
@@ -57,7 +59,6 @@ fun WelcomeScreen(viewModel: MainViewModel, modifier: Modifier) {
             .padding(horizontal = 24.dp)
             .verticalScroll(rememberScrollState())
     ) {
-
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -168,18 +169,8 @@ fun WelcomeScreen(viewModel: MainViewModel, modifier: Modifier) {
         Spacer(modifier = Modifier.height(12.dp))
 
         if (history.isEmpty()) {
-            Card(
-                modifier = Modifier.fillMaxWidth().height(100.dp),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        "暂无最近配置",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+            EmptyHistoryCard {
+                viewModel.onAction(MainAction.StartConfig)
             }
         } else {
             when (history.size) {
@@ -187,17 +178,30 @@ fun WelcomeScreen(viewModel: MainViewModel, modifier: Modifier) {
                     QuickStartCard(
                         modifier = Modifier.fillMaxWidth(),
                         historyEntry = history.first(),
-                        onClick = { /* TODO: Implement quick start logic */ }
+                        onClick = {
+                            viewModel.onAction(
+                                MainAction.StartConfigWithHistory(
+                                    historyEntry = history[0]
+                                )
+                            )
+                        }
                     )
                 }
 
                 2 -> {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        history.forEach {
+                        history.forEach { entry ->
                             QuickStartCard(
                                 modifier = Modifier.weight(1f),
-                                historyEntry = it,
-                                onClick = { /* TODO: Implement quick start logic */ }
+                                historyEntry = entry,
+                                onClick = {
+                                    viewModel.onAction(
+                                        MainAction.StartConfigWithHistory(
+                                            historyEntry = entry
+                                        )
+                                    )
+                                }
+
                             )
                         }
                     }
@@ -205,11 +209,17 @@ fun WelcomeScreen(viewModel: MainViewModel, modifier: Modifier) {
 
                 3 -> {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        history.take(2).forEach {
+                        history.take(2).forEach { entry ->
                             QuickStartCard(
                                 modifier = Modifier.weight(1f),
-                                historyEntry = it,
-                                onClick = { /* TODO: Implement quick start logic */ }
+                                historyEntry = entry,
+                                onClick = {
+                                    viewModel.onAction(
+                                        MainAction.StartConfigWithHistory(
+                                            historyEntry = entry
+                                        )
+                                    )
+                                }
                             )
                         }
                     }
@@ -219,11 +229,17 @@ fun WelcomeScreen(viewModel: MainViewModel, modifier: Modifier) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         history.take(4).chunked(2).forEach { rowItems ->
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                rowItems.forEach { item ->
+                                rowItems.forEach { entry ->
                                     QuickStartCard(
                                         modifier = Modifier.weight(1f),
-                                        historyEntry = item,
-                                        onClick = { /* TODO: Implement quick start logic */ }
+                                        historyEntry = entry,
+                                        onClick = {
+                                            viewModel.onAction(
+                                                MainAction.StartConfigWithHistory(
+                                                    historyEntry = entry
+                                                )
+                                            )
+                                        }
                                     )
                                 }
                             }
@@ -249,7 +265,6 @@ fun QuickStartCard(
         if (historyEntry.status == 0) MaterialTheme.colorScheme.primary else if (historyEntry.status == 1) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
     val badgeContentColor =
         if (historyEntry.status == 0) MaterialTheme.colorScheme.onPrimary else if (historyEntry.status == 1) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.surfaceVariant
-
     val msg = HISTORY_TYPE_MSG[historyEntry.status]!!
     val icon =
         if (historyEntry.status == 0) Icons.Rounded.CheckCircle else if (historyEntry.status == 1) Icons.Rounded.Cancel else Icons.Rounded.Block
@@ -314,7 +329,6 @@ fun QuickStartCard(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = contentColor,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -333,6 +347,85 @@ fun QuickStartCard(
                     color = contentColor.copy(alpha = 0.8f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun EmptyHistoryCard(
+    onCreateClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxSize(),
+        shape = RoundedCornerShape(32.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 32.dp, horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // 图标容器：在 SecondaryContainer 上，使用 Surface (或者 PrimaryContainer) 来做对比
+            Surface(
+                modifier = Modifier.size(64.dp),
+                shape = CircleShape,
+                // 使用稍微深一点或者不同的颜色来突出图标背景
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.Assignment,
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp),
+                        // 图标颜色使用当前容器的内容色
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 标题
+            Text(
+                text = "暂无历史记录",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // 描述文本
+            Text(
+                text = "您的预约配置将自动保存于此，\n方便下次一键启动。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
+                textAlign = TextAlign.Center,
+                lineHeight = 20.sp
+            )
+
+            Spacer(modifier = Modifier.height(15.dp))
+
+            // 行为按钮
+            Surface(
+                onClick = onCreateClick,
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.primary, // 按钮背景使用 Primary
+                contentColor = MaterialTheme.colorScheme.onPrimary // 按钮文字使用 OnPrimary
+            ) {
+                Text(
+                    text = "去创建一个",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }

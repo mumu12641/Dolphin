@@ -28,6 +28,7 @@ sealed class MainAction {
     data class SelectVenue(val venue: String) : MainAction()
     data class ClickCourt(val courtNumber: Int) : MainAction()
     data class SelectTimeSlot(val timeSlot: String) : MainAction()
+    data class StartConfigWithHistory(val historyEntry: HistoryEntry) : MainAction()
     data object ClearSelectedCourts : MainAction()
     data object StartConfig : MainAction()
     data object StartBooking : MainAction()
@@ -37,16 +38,21 @@ sealed class MainAction {
 }
 
 data class MainUiState(
+//    welcome
     val username: String = "",
     val password: String = "",
     val history: List<HistoryEntry> = emptyList(),
+//    config
     val selectedVenue: String = Constant.VENUES.first(),
     val selectedCourts: List<Int> = emptyList(),
     val selectedTimeSlot: String = Constant.TIME_SLOTS[5],
-    val logMessages: List<LogEntry> = emptyList(),
-    val bookingState: BookingState = BookingState.IDLE,
+//    constants
     val venues: List<String> = Constant.VENUES,
-    val courtCount: Int = Constant.VENUE_COURT_COUNTS[Constant.VENUES.first()]!!
+    val courtCount: Int = Constant.VENUE_COURT_COUNTS[Constant.VENUES.first()]!!,
+//    run
+    val logMessages: List<LogEntry> = emptyList(),
+//    others
+    val bookingState: BookingState = BookingState.IDLE,
 )
 
 
@@ -94,8 +100,27 @@ class MainViewModel : ViewModel() {
             is MainAction.SelectVenue -> onVenueSelected(action.venue)
             is MainAction.ClickCourt -> onCourtClicked(action.courtNumber)
             is MainAction.SelectTimeSlot -> _uiState.update { it.copy(selectedTimeSlot = action.timeSlot) }
+            is MainAction.StartConfigWithHistory -> {
+                _uiState.update {
+                    it.copy(
+                        selectedVenue = action.historyEntry.venue,
+                        selectedCourts = action.historyEntry.priority,
+                        selectedTimeSlot = action.historyEntry.timeSlot,
+                        bookingState = BookingState.CONFIG
+                    )
+                }
+            }
+
             MainAction.ClearSelectedCourts -> _uiState.update { it.copy(selectedCourts = emptyList()) }
-            MainAction.StartConfig -> _uiState.update { it.copy(bookingState = BookingState.CONFIG) }
+            MainAction.StartConfig -> _uiState.update {
+                it.copy(
+                    selectedVenue = Constant.VENUES.first(),
+                    selectedCourts = emptyList(),
+                    selectedTimeSlot = Constant.TIME_SLOTS[5],
+                    bookingState = BookingState.CONFIG
+                )
+            }
+
             MainAction.StartBooking -> startBooking()
             MainAction.StopBooking -> stopBooking()
             MainAction.BackToHome -> _uiState.update {
@@ -146,7 +171,7 @@ class MainViewModel : ViewModel() {
 
             if (username.isBlank() || password.isBlank()) {
                 addLog("❌ 用户信息未填写。请前往设置页面填写。", LogType.ERROR)
-                _uiState.update { it.copy(bookingState = BookingState.STOPPED) }
+                _uiState.update { it.copy(bookingState = BookingState.ABORT) }
                 return@launch
             }
 
@@ -182,7 +207,7 @@ class MainViewModel : ViewModel() {
                 bookingInfo = bookingInfo
             ).onCompletion {
                 _uiState.update {
-                    it.copy(bookingState = BookingState.STOPPED)
+                    it.copy(bookingState = BookingState.ABORT)
                 }
             }.collect { logEntry ->
                 when (logEntry.type) {
@@ -213,7 +238,7 @@ class MainViewModel : ViewModel() {
     fun stopBooking() {
         BookingService.stop()
         addLog("🛑 预约已中止。", LogType.INFO)
-        _uiState.update { it.copy(bookingState = BookingState.STOPPED) }
+        _uiState.update { it.copy(bookingState = BookingState.ABORT) }
     }
 
 
@@ -253,7 +278,7 @@ class MainViewModel : ViewModel() {
 }
 
 enum class BookingState {
-    IDLE, RUNNING, STOPPED, CONFIG
+    IDLE, RUNNING, ABORT, CONFIG, FAILED, SUCCESS
 }
 
 enum class LogType {

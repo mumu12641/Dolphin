@@ -278,7 +278,6 @@ fun ConfigScreen(
                                         time,
                                         fontWeight = FontWeight.Bold,
                                         color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray,
-                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
                                     )
                                     if (isSelected) {
                                         Icon(

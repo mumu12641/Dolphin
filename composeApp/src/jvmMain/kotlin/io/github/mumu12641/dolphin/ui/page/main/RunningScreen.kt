@@ -1,5 +1,4 @@
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,13 +16,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.rounded.ArrowRight
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.rounded.AdsClick
-import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material.icons.rounded.Cancel
 import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.RocketLaunch
 import androidx.compose.material.icons.rounded.Timer
@@ -48,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.mumu12641.dolphin.ui.page.main.BookingState
 import io.github.mumu12641.dolphin.ui.page.main.LogEntry
 import io.github.mumu12641.dolphin.ui.page.main.LogType
 import io.github.mumu12641.dolphin.ui.page.main.MainViewModel
@@ -55,22 +56,25 @@ import io.github.mumu12641.dolphin.ui.page.main.MainViewModel
 @Composable
 fun RunningScreen(
     viewModel: MainViewModel,
-    modifier: Modifier
+    modifier: Modifier = Modifier
 ) {
     val mainUiState by viewModel.uiState.collectAsState()
     val venue = mainUiState.selectedVenue
     val timeSlot = mainUiState.selectedTimeSlot
     val courts = mainUiState.selectedCourts
-
-
+    val state = mainUiState.bookingState
+    val stateMsgEN =
+        if (state == BookingState.RUNNING) "RUNNING" else if (state == BookingState.ABORT) "ABORT" else if (state == BookingState.SUCCESS) "SUCCESS" else "FAILED"
+    val stateMsgZH =
+        if (state == BookingState.RUNNING) "抢场中" else if (state == BookingState.ABORT) "已中止" else if (state == BookingState.SUCCESS) "成功" else "失败"
+    val icon =
+        if (state == BookingState.RUNNING) Icons.Rounded.Timer else if (state == BookingState.ABORT) Icons.Rounded.Block else if (state == BookingState.SUCCESS) Icons.Default.Timer else Icons.Rounded.Cancel
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 24.dp)
             .padding(bottom = 24.dp)
     ) {
-
-        // Countdown Hero
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -106,43 +110,24 @@ fun RunningScreen(
                             modifier = Modifier.alpha(0.9f)
                         ) {
                             Icon(
-                                Icons.Rounded.Timer,
+                                icon,
                                 null,
                                 tint = MaterialTheme.colorScheme.onPrimary,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                "RUNNING",
+                                stateMsgEN,
                                 color = MaterialTheme.colorScheme.onPrimary,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
                         Text(
-                            "抢场中",
+                            stateMsgZH,
                             color = MaterialTheme.colorScheme.onPrimary,
                             fontSize = 36.sp,
                             fontWeight = FontWeight.Bold,
-                        )
-                    }
-
-                    // Spinner Visual
-                    Box(
-                        modifier = Modifier
-                            .size(80.dp)
-                            .border(
-                                4.dp,
-                                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f),
-                                CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Rounded.Bolt,
-                            null,
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(32.dp)
                         )
                     }
                 }
@@ -159,10 +144,6 @@ fun RunningScreen(
                 containerColor =
                     MaterialTheme.colorScheme.background
             ),
-//            border = androidx.compose.foundation.BorderStroke(
-//                1.dp,
-//                MaterialTheme.colorScheme.outline
-//            )
             elevation = CardDefaults.cardElevation(8.dp)
         ) {
             Row(modifier = Modifier.height(IntrinsicSize.Min)) {
@@ -231,7 +212,10 @@ fun RunningScreen(
                                     color = MaterialTheme.colorScheme.onPrimary,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    modifier = Modifier.padding(
+                                        horizontal = 8.dp,
+                                        vertical = 4.dp
+                                    )
                                 )
                             }
                         }
@@ -246,7 +230,11 @@ fun RunningScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("策略:", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+                        Text(
+                            "策略:",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             courts.forEachIndexed { index, i ->
@@ -317,6 +305,7 @@ fun RunningScreen(
         }
     }
 }
+
 
 @Composable
 fun LogContent(logMessages: List<LogEntry>) {
