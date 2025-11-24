@@ -6,10 +6,15 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import io.github.mumu12641.dolphin.data.UserPreferencesRepository
 import io.github.mumu12641.dolphin.ui.page.main.MainScreen
 import io.github.mumu12641.dolphin.ui.page.main.MainViewModel
 import io.github.mumu12641.dolphin.ui.page.settings.SettingsScreen
 import io.github.mumu12641.dolphin.ui.page.settings.SettingsViewModel
+import io.github.mumu12641.dolphin.ui.page.settings.toComposeColor
 import io.github.mumu12641.dolphin.ui.theme.DolphinTheme
 import moe.tlaster.precompose.navigation.NavHost
 import moe.tlaster.precompose.navigation.rememberNavigator
@@ -20,8 +25,12 @@ import moe.tlaster.precompose.viewmodel.viewModel
 @Composable
 fun App() {
     val navigator = rememberNavigator()
-
-    DolphinTheme {
+    val themeColorHex by UserPreferencesRepository.colorFlow
+        .collectAsState(initial = "0xFFFFFFFF")
+    val seedColor = remember(themeColorHex) {
+        themeColorHex.toComposeColor()
+    }
+    DolphinTheme(seedColor = seedColor) {
         val slideTransition = NavTransition(
             createTransition = slideInHorizontally(
                 initialOffsetX = { it },

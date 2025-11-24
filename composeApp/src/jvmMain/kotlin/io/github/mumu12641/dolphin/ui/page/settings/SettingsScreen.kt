@@ -1,6 +1,7 @@
 package io.github.mumu12641.dolphin.ui.page.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +29,7 @@ import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.VpnKey
 import androidx.compose.material3.BasicAlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -45,14 +47,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import com.darkrockstudios.libraries.mpfilepicker.FilePicker
+import io.github.mohammedalaamorsi.colorpicker.ColorPicker
+import io.github.mohammedalaamorsi.colorpicker.ColorPickerType
+import io.github.mohammedalaamorsi.colorpicker.ext.toHex
+import io.github.mohammedalaamorsi.colorpicker.ext.transparentBackground
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,11 +79,17 @@ fun SettingsScreen(
         AccountDialog(viewModel = viewModel)
     }
 
+    if (settingUiState.showThemeDialog) {
+        ThemeDialog(viewModel = viewModel)
+    }
+
     Scaffold(
         topBar = {
             LargeTopAppBar(
                 title = {
-                    Text("设置")
+                    Row(modifier = Modifier.padding(start = 16.dp)) {
+                        Text("设置")
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateUp) {
@@ -179,6 +194,112 @@ fun AccountDialog(viewModel: SettingsViewModel) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
+@Composable
+fun ThemeDialog(viewModel: SettingsViewModel) {
+    val settingUiState by viewModel.uiState.collectAsState()
+    val color = settingUiState.color
+    BasicAlertDialog(
+        onDismissRequest = { viewModel.onAction(SettingsAction.DismissThemeDialog) },
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .width(320.dp)
+                .wrapContentHeight(),
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "选择主题颜色",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.align(Alignment.Start)
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    ColorPicker {
+                        viewModel.onAction(SettingsAction.SelectColor(it))
+                    }
+
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            MaterialTheme.colorScheme.surfaceContainer,
+                            RoundedCornerShape(12.dp)
+                        )
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = "HEX Code",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "#${color.toHex()}",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                            .transparentBackground(verticalBoxesAmount = 6)
+                            .background(color)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(
+                        onClick = { viewModel.onAction(SettingsAction.DismissThemeDialog) }
+                    ) {
+                        Text("取消")
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Button(
+                        onClick = {
+                            viewModel.onAction(SettingsAction.SaveColor)
+                            viewModel.onAction(SettingsAction.DismissThemeDialog)
+                        }
+                    ) {
+                        Text("确定")
+                    }
+                }
+            }
+
+        }
+    }
+}
 
 @Composable
 fun SettingContent(modifier: Modifier, viewModel: SettingsViewModel) {
@@ -269,7 +390,7 @@ fun SettingContent(modifier: Modifier, viewModel: SettingsViewModel) {
                 "应用主题",
                 "更改主题颜色",
             ) {
-
+                viewModel.onAction(SettingsAction.OpenThemeDialog)
             }
         }
     }

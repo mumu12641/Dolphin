@@ -13,6 +13,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -46,7 +47,9 @@ fun MainScreen(viewModel: MainViewModel = MainViewModel(), onNavigateToSettings:
         topBar = {
             LargeTopAppBar(
                 title = {
-                    Text("欢迎使用Dolphin🐬")
+                    Row(modifier = Modifier.padding(start = 16.dp)) {
+                        Text("欢迎使用Dolphin🐬")
+                    }
                 },
                 actions = {
                     IconButton(onClick = onNavigateToSettings) {
@@ -126,14 +129,10 @@ fun MainScreen(viewModel: MainViewModel = MainViewModel(), onNavigateToSettings:
             transitionSpec = {
                 if (targetState == BookingState.IDLE) {
                     (slideInHorizontally { width -> -width } + fadeIn(animationSpec = tween(300)))
-                        .togetherWith(slideOutHorizontally { width -> width } + fadeOut(
-                            animationSpec = tween(300)
-                        ))
+                        .togetherWith(slideOutHorizontally { width -> width } + fadeOut(animationSpec = tween(300)))
                 } else {
                     (slideInHorizontally { width -> width } + fadeIn(animationSpec = tween(300)))
-                        .togetherWith(slideOutHorizontally { width -> -width } + fadeOut(
-                            animationSpec = tween(300)
-                        ))
+                        .togetherWith(slideOutHorizontally { width -> -width } + fadeOut(animationSpec = tween(300)))
                 }
             },
             label = "MainContentAnimation"

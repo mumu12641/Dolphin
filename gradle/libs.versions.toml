@@ -17,6 +17,8 @@ room = "2.8.4"
 sqlite = "2.6.2"
 ksp = "2.3.3"
 gson = "2.13.2"
+colorpicker = "1.0.2"
+materialKolor = "4.0.0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -41,6 +43,8 @@ androidx-sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.r
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 gson-core = {module = "com.google.code.gson:gson", version.ref = "gson"}
+compose-colorpicker = { module = "io.github.mohammedalaamorsi:colorpicker", version.ref = "colorpicker" }
+materialKolor = { module = "com.materialkolor:material-kolor", version.ref = "materialKolor" }
 
 [plugins]
 composeHotReload = { id = "org.jetbrains.compose.hot-reload", version.ref = "composeHotReload" }

@@ -41,6 +41,10 @@ kotlin {
             implementation(libs.androidx.sqlite.bundled)
             implementation(libs.gson.core)
 
+            implementation(libs.compose.colorpicker)
+            implementation(libs.materialKolor)
+
+
 
         }
         commonTest.dependencies {
