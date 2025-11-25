@@ -6,8 +6,8 @@ import androidx.compose.ui.graphics.Color
 import com.materialkolor.rememberDynamicColorScheme
 
 @Composable
-fun DolphinTheme(seedColor: Color, content: @Composable () -> Unit) {
-    val colorScheme = rememberDynamicColorScheme(seedColor = seedColor, isDark = false)
+fun DolphinTheme(seedColor: Color, darkMode: Boolean, content: @Composable () -> Unit) {
+    val colorScheme = rememberDynamicColorScheme(seedColor = seedColor, isDark = darkMode)
 
     MaterialTheme(
         colorScheme = colorScheme,

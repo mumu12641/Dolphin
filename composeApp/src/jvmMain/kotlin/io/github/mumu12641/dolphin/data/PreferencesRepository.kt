@@ -9,19 +9,28 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.io.File
 
-object UserPreferencesRepository {
+object PreferencesRepository {
 
-    private const val DATASTORE_NAME = "user_prefs.preferences_pb"
-    private const val COLOR_DATASTORE_NAME = "theme_prefs.preferences_pb"
+    private const val ACCOUNT_DATASTORE_NAME = ".prefs/account_prefs.preferences_pb"
+    private const val THEME_DATASTORE_NAME = ".prefs/theme_prefs.preferences_pb"
     private val USERNAME_KEY = stringPreferencesKey("username")
     private val PASSWORD_KEY = stringPreferencesKey("password")
-    private val COLOR_KEY = stringPreferencesKey("seed_color")
+    private val THEME_COLOR_KEY = stringPreferencesKey("theme_color")
+    private val DARK_THEME_KEY = stringPreferencesKey("dark_theme")
 
     private val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
-        produceFile = { File(System.getProperty("java.io.tmpdir"), DATASTORE_NAME) }
+        produceFile = {
+            val file = File(System.getProperty("user.dir"), ACCOUNT_DATASTORE_NAME)
+            file.parentFile.mkdirs()
+            file
+        }
     )
     private val colorDataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
-        produceFile = { File(System.getProperty("java.io.tmpdir"), COLOR_DATASTORE_NAME) }
+        produceFile = {
+            val file = File(System.getProperty("user.dir"), THEME_DATASTORE_NAME)
+            file.parentFile.mkdirs()
+            file
+        }
     )
 
     val userFlow: Flow<Pair<String, String>> = dataStore.data
@@ -30,10 +39,11 @@ object UserPreferencesRepository {
             val password = preferences[PASSWORD_KEY] ?: ""
             Pair(username, password)
         }
-    val colorFlow: Flow<String> = colorDataStore.data
+    val themeFlow: Flow<Pair<String, String>> = colorDataStore.data
         .map { preferences ->
-            val color: String = preferences[COLOR_KEY] ?: "0xFFFFFFFF"
-            color
+            val color: String = preferences[THEME_COLOR_KEY] ?: "0x89CFF0"
+            val darkTheme: String = preferences[DARK_THEME_KEY] ?: "false"
+            Pair(color, darkTheme)
         }
 
     suspend fun saveUser(username: String, password: String) {
@@ -43,9 +53,10 @@ object UserPreferencesRepository {
         }
     }
 
-    suspend fun saveColor(color: String) {
+    suspend fun saveTheme(color: String, darkTheme: String) {
         colorDataStore.edit { preferences ->
-            preferences[COLOR_KEY] = color
+            preferences[THEME_COLOR_KEY] = color
+            preferences[DARK_THEME_KEY] = darkTheme
         }
     }
 }

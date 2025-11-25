@@ -9,7 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import io.github.mumu12641.dolphin.data.UserPreferencesRepository
+import io.github.mumu12641.dolphin.data.PreferencesRepository
 import io.github.mumu12641.dolphin.ui.page.main.MainScreen
 import io.github.mumu12641.dolphin.ui.page.main.MainViewModel
 import io.github.mumu12641.dolphin.ui.page.settings.SettingsScreen
@@ -25,12 +25,15 @@ import moe.tlaster.precompose.viewmodel.viewModel
 @Composable
 fun App() {
     val navigator = rememberNavigator()
-    val themeColorHex by UserPreferencesRepository.colorFlow
-        .collectAsState(initial = "0xFFFFFFFF")
-    val seedColor = remember(themeColorHex) {
-        themeColorHex.toComposeColor()
+    val theme by PreferencesRepository.themeFlow
+        .collectAsState(initial = Pair("0x89CFF0", "false"))
+    val seedColor = remember(theme) {
+        theme.first.toComposeColor()
     }
-    DolphinTheme(seedColor = seedColor) {
+    val darkMode = remember(theme) {
+        theme.second.toBoolean()
+    }
+    DolphinTheme(seedColor = seedColor, darkMode = darkMode) {
         val slideTransition = NavTransition(
             createTransition = slideInHorizontally(
                 initialOffsetX = { it },

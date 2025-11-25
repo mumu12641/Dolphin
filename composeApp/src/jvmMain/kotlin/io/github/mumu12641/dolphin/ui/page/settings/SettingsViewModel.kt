@@ -3,8 +3,8 @@ package io.github.mumu12641.dolphin.ui.page.settings
 import androidx.compose.ui.graphics.Color
 import com.darkrockstudios.libraries.mpfilepicker.MPFile
 import io.github.mohammedalaamorsi.colorpicker.ext.toHex
-import io.github.mumu12641.dolphin.data.UserPreferencesRepository
-import io.github.mumu12641.dolphin.di.Graph
+import io.github.mumu12641.dolphin.data.PreferencesRepository
+import io.github.mumu12641.dolphin.di.DatabaseModule
 import io.github.mumu12641.dolphin.model.HistoryEntry
 import io.github.mumu12641.dolphin.model.User
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -24,9 +24,10 @@ sealed class SettingsAction {
     data class UpdatePassword(val password: String) : SettingsAction()
     data class SelectFile(val file: MPFile<Any>?) : SettingsAction()
     data class SelectColor(val color: Color) : SettingsAction()
+    data class UpdateDarkMode(val darkMode: Boolean) : SettingsAction()
     data object OpenFilePicker : SettingsAction()
     data object SaveUser : SettingsAction()
-    data object SaveColor : SettingsAction()
+    data object SaveTheme : SettingsAction()
     data object OpenAccountDialog : SettingsAction()
     data object DismissAccountDialog : SettingsAction()
     data object OpenThemeDialog : SettingsAction()
@@ -40,39 +41,21 @@ data class SettingsUiState(
     val showFilePicker: Boolean = false,
     val showAccountDialog: Boolean = false,
     val showThemeDialog: Boolean = false,
-    val color: Color = Color.White
+    val color: Color = Color.White,
+    val darkMode: Boolean = false
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsViewModel : ViewModel() {
 
-    private val historyRepository = Graph.historyRepository
+    private val historyRepository = DatabaseModule.historyRepository
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState = _uiState.asStateFlow()
 
-    //    init {
-//        viewModelScope.launch {
-//            UserPreferencesRepository.userFlow
-//                .flatMapLatest { user ->
-//                    val username = user.first
-//                    val password = user.second
-//                    if (username.isNotBlank()) {
-//                        historyRepository.getHistoryByUsername(username).map {
-//                            SettingsUiState(username, password, it?.history ?: emptyList())
-//                        }
-//                    } else {
-//                        flowOf(SettingsUiState(password = password))
-//                    }
-//                }
-//                .collect { state ->
-//                    _uiState.value = state
-//                }
-//        }
-//    }
     init {
         viewModelScope.launch {
-            val userWithHistoryFlow = UserPreferencesRepository.userFlow
+            val userWithHistoryFlow = PreferencesRepository.userFlow
                 .flatMapLatest { (username, password) ->
                     historyRepository.getHistoryByUsername(username).map {
                         Triple(username, password, it?.history ?: emptyList())
@@ -81,13 +64,14 @@ class SettingsViewModel : ViewModel() {
                 }
             combine(
                 userWithHistoryFlow,
-                UserPreferencesRepository.colorFlow
-            ) { (username, password, history), colorString ->
+                PreferencesRepository.themeFlow
+            ) { (username, password, history), (colorString, darModeString) ->
                 SettingsUiState(
                     username = username,
                     password = password,
                     history = history,
-                    color = colorString.toComposeColor()
+                    color = colorString.toComposeColor(),
+                    darkMode = darModeString.toBoolean()
                 )
             }.collect { state ->
                 _uiState.value = state
@@ -101,9 +85,10 @@ class SettingsViewModel : ViewModel() {
             is SettingsAction.UpdatePassword -> _uiState.update { it.copy(password = action.password) }
             is SettingsAction.SelectFile -> onFileSelected(action.file)
             is SettingsAction.SelectColor -> _uiState.update { it.copy(color = action.color) }
+            is SettingsAction.UpdateDarkMode -> _uiState.update { it.copy(darkMode = action.darkMode) }
             SettingsAction.OpenFilePicker -> _uiState.update { it.copy(showFilePicker = true) }
             SettingsAction.SaveUser -> saveUser()
-            SettingsAction.SaveColor -> saveColor()
+            SettingsAction.SaveTheme -> saveTheme()
             SettingsAction.OpenAccountDialog -> _uiState.update { it.copy(showAccountDialog = true) }
             SettingsAction.DismissAccountDialog -> _uiState.update { it.copy(showAccountDialog = false) }
             SettingsAction.OpenThemeDialog -> _uiState.update { it.copy(showThemeDialog = true) }
@@ -132,13 +117,16 @@ class SettingsViewModel : ViewModel() {
 
     private fun saveUser() {
         viewModelScope.launch {
-            UserPreferencesRepository.saveUser(_uiState.value.username, _uiState.value.password)
+            PreferencesRepository.saveUser(_uiState.value.username, _uiState.value.password)
         }
     }
 
-    private fun saveColor() {
+    private fun saveTheme() {
         viewModelScope.launch {
-            UserPreferencesRepository.saveColor(_uiState.value.color.toHex())
+            PreferencesRepository.saveTheme(
+                _uiState.value.color.toHex(),
+                _uiState.value.darkMode.toString()
+            )
         }
     }
 
@@ -163,7 +151,7 @@ fun String.toComposeColor(): Color {
                 Color(red, green, blue, alpha)
             }
 
-            else -> Color.White
+            else -> Color.Blue
         }
     } catch (_: Exception) {
         Color.White

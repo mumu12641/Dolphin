@@ -1,8 +1,7 @@
 package io.github.mumu12641.dolphin.ui.page.main
 
-import io.github.mumu12641.dolphin.data.UserPreferencesRepository
-import io.github.mumu12641.dolphin.di.Graph
-import io.github.mumu12641.dolphin.model.BookingInfo
+import io.github.mumu12641.dolphin.data.PreferencesRepository
+import io.github.mumu12641.dolphin.di.DatabaseModule
 import io.github.mumu12641.dolphin.model.HistoryEntry
 import io.github.mumu12641.dolphin.service.BookingService
 import io.github.mumu12641.dolphin.util.Constant
@@ -59,7 +58,7 @@ data class MainUiState(
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModel : ViewModel() {
 
-    private val historyRepository = Graph.historyRepository
+    private val historyRepository = DatabaseModule.historyRepository
 
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState = _uiState.asStateFlow()
@@ -67,7 +66,7 @@ class MainViewModel : ViewModel() {
 
     init {
         viewModelScope.launch {
-            UserPreferencesRepository.userFlow
+            PreferencesRepository.userFlow
                 .flatMapLatest { user ->
                     val username = user.first
                     val password = user.second
@@ -190,30 +189,26 @@ class MainViewModel : ViewModel() {
                 }
                     .joinToString(",")
 
-//            val executablePath =
-//                File(System.getProperty("user.dir"), "Goodminton.exe").absolutePath
-            val executablePath = File("D:\\Softwares\\Dolphin", "Goodminton.exe").absolutePath
+            val executablePath =
+                File(System.getProperty("user.dir"), "core/Goodminton.exe").absolutePath
+//            val executablePath = File("D:\\Softwares\\Dolphin", "Goodminton.exe").absolutePath
 
-            val bookingInfo = BookingInfo(
+            BookingService.start(
+                executablePath = executablePath,
                 venueId = Constant.VENUE_IDS[_uiState.value.selectedVenue]!!,
                 startTime = _uiState.value.selectedTimeSlot.split("-").first(),
                 priorityList = priorityList,
                 username = username,
                 password = password
-            )
-
-            BookingService.start(
-                executablePath = executablePath,
-                bookingInfo = bookingInfo
             ).onCompletion {
-                _uiState.update {
-                    it.copy(bookingState = BookingState.ABORT)
-                }
+
             }.collect { logEntry ->
                 when (logEntry.type) {
                     LogType.SUCCESS, LogType.FAILED, LogType.ABORT -> {
                         val statusCode =
                             if (logEntry.type == LogType.SUCCESS) 0 else if (logEntry.type == LogType.FAILED) 1 else 2
+                        val bookingState =
+                            if (logEntry.type == LogType.SUCCESS) BookingState.SUCCESS else if (logEntry.type == LogType.FAILED) BookingState.FAILED else BookingState.ABORT
                         val historyEntry = HistoryEntry(
                             venue = _uiState.value.selectedVenue,
                             priority = _uiState.value.selectedCourts,
@@ -222,6 +217,9 @@ class MainViewModel : ViewModel() {
                         )
                         withContext(Dispatchers.IO) {
                             historyRepository.addHistoryEntry(_uiState.value.username, historyEntry)
+                        }
+                        _uiState.update {
+                            it.copy(bookingState = bookingState)
                         }
                     }
 

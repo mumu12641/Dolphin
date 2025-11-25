@@ -3,7 +3,6 @@ package io.github.mumu12641.dolphin.ui.page.main
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,7 +49,7 @@ import io.github.mumu12641.dolphin.model.HistoryEntry
 import io.github.mumu12641.dolphin.util.Constant.HISTORY_TYPE_MSG
 
 @Composable
-fun WelcomeScreen(viewModel: MainViewModel, modifier: Modifier= Modifier) {
+fun WelcomeScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) {
     val mainUiState by viewModel.uiState.collectAsState()
     val history = mainUiState.history
     Column(
@@ -60,10 +59,10 @@ fun WelcomeScreen(viewModel: MainViewModel, modifier: Modifier= Modifier) {
             .verticalScroll(rememberScrollState())
     ) {
         Card(
+            onClick = { viewModel.onAction(MainAction.StartConfig) },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(220.dp)
-                .clickable { viewModel.onAction(MainAction.StartConfig) },
+                .height(220.dp),
             shape = RoundedCornerShape(32.dp),
             elevation = CardDefaults.cardElevation(8.dp)
 
@@ -270,7 +269,8 @@ fun QuickStartCard(
         if (historyEntry.status == 0) Icons.Rounded.CheckCircle else if (historyEntry.status == 1) Icons.Rounded.Cancel else Icons.Rounded.Block
 
     Card(
-        modifier = modifier.clickable { onClick() },
+        onClick = onClick,
+        modifier = modifier,
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = containerColor, contentColor = contentColor
@@ -373,11 +373,9 @@ fun EmptyHistoryCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // 图标容器：在 SecondaryContainer 上，使用 Surface (或者 PrimaryContainer) 来做对比
             Surface(
                 modifier = Modifier.size(64.dp),
                 shape = CircleShape,
-                // 使用稍微深一点或者不同的颜色来突出图标背景
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -385,7 +383,6 @@ fun EmptyHistoryCard(
                         imageVector = Icons.AutoMirrored.Rounded.Assignment,
                         contentDescription = null,
                         modifier = Modifier.size(32.dp),
-                        // 图标颜色使用当前容器的内容色
                         tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
                     )
                 }
@@ -393,7 +390,6 @@ fun EmptyHistoryCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 标题
             Text(
                 text = "暂无历史记录",
                 style = MaterialTheme.typography.titleMedium,
@@ -403,7 +399,6 @@ fun EmptyHistoryCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // 描述文本
             Text(
                 text = "您的预约配置将自动保存于此，\n方便下次一键启动。",
                 style = MaterialTheme.typography.bodyMedium,
@@ -414,12 +409,11 @@ fun EmptyHistoryCard(
 
             Spacer(modifier = Modifier.height(15.dp))
 
-            // 行为按钮
             Surface(
                 onClick = onCreateClick,
                 shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.primary, // 按钮背景使用 Primary
-                contentColor = MaterialTheme.colorScheme.onPrimary // 按钮文字使用 OnPrimary
+                color = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
                 Text(
                     text = "去创建一个",

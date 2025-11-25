@@ -21,8 +21,8 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun getDatabase(): AppDatabase {
             return INSTANCE ?: synchronized(this) {
-                val dbFile = File(System.getProperty("user.home"), ".dolphin/dolphin_database.db")
-                dbFile.parentFile.mkdirs() // Ensure the directory exists
+                val dbFile = File(System.getProperty("user.dir"), ".database/dolphin_database.db")
+                dbFile.parentFile.mkdirs()
 
                 val builder = Room.databaseBuilder<AppDatabase>(
                     name = dbFile.absolutePath,

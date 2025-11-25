@@ -41,7 +41,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -91,7 +90,7 @@ fun RunningScreen(
                 Icon(
                     imageVector = Icons.Rounded.RocketLaunch,
                     contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.1f),
+                    tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.1f),
                     modifier = Modifier
                         .size(160.dp)
                         .align(Alignment.BottomEnd)
@@ -136,7 +135,6 @@ fun RunningScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Mission Briefing
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
@@ -147,7 +145,6 @@ fun RunningScreen(
             elevation = CardDefaults.cardElevation(8.dp)
         ) {
             Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-                // Left: Venue
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -180,48 +177,49 @@ fun RunningScreen(
                     )
                 }
 
-                // Right: Details
                 Column(
                     modifier = Modifier
                         .weight(2f)
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
                         .padding(20.dp),
                     verticalArrangement = Arrangement.Center
                 ) {
-                    // Time
-                    Row(verticalAlignment = Alignment.Top) {
-                        Icon(
-                            Icons.Rounded.Update,
-                            null,
-                            tint = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.Update,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                "目标时间段",
+                                text = "目标时间段",
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.secondary
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Surface(
-                                color = MaterialTheme.colorScheme.onSurface,
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text(
-                                    timeSlot,
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(
-                                        horizontal = 8.dp,
-                                        vertical = 4.dp
-                                    )
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Surface(
+                            color = MaterialTheme.colorScheme.onSurface,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.padding(start = 26.dp)
+                        ) {
+                            Text(
+                                text = timeSlot,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(
+                                    horizontal = 8.dp,
+                                    vertical = 4.dp
                                 )
-                            }
+                            )
                         }
                     }
                     Spacer(modifier = Modifier.height(16.dp))
-                    // Strategy
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             Icons.Rounded.AdsClick,
@@ -243,7 +241,7 @@ fun RunningScreen(
                                         .padding(start = 4.dp)
                                         .size(20.dp)
                                         .background(
-                                            if (index == 0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+                                            MaterialTheme.colorScheme.secondaryContainer,
                                             RoundedCornerShape(4.dp)
                                         ),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -252,10 +250,11 @@ fun RunningScreen(
                                     Text(
                                         i.toString(),
                                         fontSize = 10.sp,
-                                        fontWeight = if (index == 0) FontWeight.Bold else FontWeight.Normal
+                                        lineHeight = 10.sp,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
-                                if (index < 4 && index < courts.size - 1) {
+                                if (index < courts.size - 1) {
                                     Icon(
                                         Icons.AutoMirrored.Rounded.ArrowRight,
                                         null,
@@ -272,7 +271,6 @@ fun RunningScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Logs Console
         Card(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),

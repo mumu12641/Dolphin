@@ -43,6 +43,5 @@ object Constant {
         0 to "预约成功",
         1 to "预约失败",
         2 to "中途终止"
-
     )
 }

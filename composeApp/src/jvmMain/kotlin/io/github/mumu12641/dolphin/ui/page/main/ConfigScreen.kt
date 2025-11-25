@@ -52,9 +52,8 @@ fun ConfigScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFDF8FD))
+            .background(MaterialTheme.colorScheme.background)
     ) {
-
         Row(
             modifier = Modifier
                 .fillMaxSize()
@@ -67,15 +66,16 @@ fun ConfigScreen(
                     .weight(1f)
                     .fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.secondaryContainer
+                elevation = CardDefaults.cardElevation(8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
                     Box(
-                        modifier = Modifier.fillMaxWidth().height(4.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
                             .background(MaterialTheme.colorScheme.primary)
                     )
 
@@ -84,7 +84,7 @@ fun ConfigScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(
-                                    MaterialTheme.colorScheme.surfaceContainer,
+                                    MaterialTheme.colorScheme.surfaceVariant,
                                     RoundedCornerShape(12.dp)
                                 )
                                 .padding(4.dp),
@@ -108,15 +108,15 @@ fun ConfigScreen(
                                             Icon(
                                                 Icons.Rounded.Check,
                                                 null,
-                                                tint = Color.White,
+                                                tint = MaterialTheme.colorScheme.onPrimary,
                                                 modifier = Modifier.size(14.dp)
                                             )
                                             Spacer(modifier = Modifier.width(4.dp))
                                         }
                                         Text(
                                             v,
-                                            color = if (isSelected) Color.White else Color.Gray,
-                                            fontSize = 12.sp,
+                                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontSize = 14.sp,
                                             fontWeight = FontWeight.Bold
                                         )
                                     }
@@ -139,12 +139,17 @@ fun ConfigScreen(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("优先级队列", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    "优先级队列",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                             }
                             if (mainUiState.selectedCourts.isNotEmpty()) {
                                 Text(
                                     "清空",
-                                    color = Color(0xFFB3261E),
+                                    color = MaterialTheme.colorScheme.error,
                                     fontSize = 11.sp,
                                     modifier = Modifier.clickable { viewModel.onAction(MainAction.ClearSelectedCourts) }
                                 )
@@ -153,7 +158,6 @@ fun ConfigScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Court Grid
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(VENUE_COLS[mainUiState.selectedVenue]!!),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -169,12 +173,10 @@ fun ConfigScreen(
                                     modifier = Modifier
                                         .height(60.dp)
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.White)
+                                        .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerLow)
                                         .border(
                                             1.dp,
-                                            if (isSelected) MaterialTheme.colorScheme.primary else Color(
-                                                0xFFE0E0E0
-                                            ),
+                                            if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
                                             RoundedCornerShape(12.dp)
                                         )
                                         .clickable {
@@ -184,7 +186,7 @@ fun ConfigScreen(
                                 ) {
                                     Text(
                                         courtNumber.toString(),
-                                        color = if (isSelected) Color.White else Color.Gray,
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                                         fontWeight = FontWeight.Bold
                                     )
                                     if (isSelected) {
@@ -195,13 +197,14 @@ fun ConfigScreen(
                                                 .padding(4.dp)
                                                 .size(18.dp)
                                                 .background(
-                                                    MaterialTheme.colorScheme.secondaryContainer,
+                                                    MaterialTheme.colorScheme.onPrimary,
                                                     CircleShape
                                                 ),
                                         ) {
                                             Text(
-                                                priorityIndex.toString(),
+                                                text = priorityIndex.toString(),
                                                 fontSize = 10.sp,
+                                                lineHeight = 10.sp,
                                                 color = MaterialTheme.colorScheme.primary,
                                                 fontWeight = FontWeight.Bold,
                                                 textAlign = TextAlign.Center
@@ -212,26 +215,27 @@ fun ConfigScreen(
                                 }
                             }
                         }
+
                     }
                 }
             }
 
-            // 2. Time Selection Section (Weight 1)
             Card(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.secondaryContainer
+                elevation = CardDefaults.cardElevation(8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
                     Box(
-                        modifier = Modifier.fillMaxWidth().height(4.dp)
-                            .background(Color(0xFF7D5260))
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .background(MaterialTheme.colorScheme.primary)
                     )
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
@@ -241,11 +245,16 @@ fun ConfigScreen(
                             Icon(
                                 Icons.Rounded.Schedule,
                                 null,
-                                tint = Color(0xFF7D5260),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("时间段 (单选)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text(
+                                "时间段 (单选)",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
                         }
 
                         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -255,12 +264,10 @@ fun ConfigScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(if (isSelected) MaterialTheme.colorScheme.surfaceContainer else Color.White)
+                                        .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
                                         .border(
                                             1.dp,
-                                            if (isSelected) MaterialTheme.colorScheme.primary else Color(
-                                                0xFFE0E0E0
-                                            ),
+                                            if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
                                             RoundedCornerShape(12.dp)
                                         )
                                         .clickable {
@@ -288,7 +295,8 @@ fun ConfigScreen(
                                         )
                                     } else {
                                         Box(
-                                            modifier = Modifier.size(12.dp)
+                                            modifier = Modifier
+                                                .size(12.dp)
                                                 .border(
                                                     1.dp,
                                                     MaterialTheme.colorScheme.outline,

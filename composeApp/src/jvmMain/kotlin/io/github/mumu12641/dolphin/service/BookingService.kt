@@ -1,6 +1,5 @@
 package io.github.mumu12641.dolphin.service
 
-import io.github.mumu12641.dolphin.model.BookingInfo
 import io.github.mumu12641.dolphin.ui.page.main.LogEntry
 import io.github.mumu12641.dolphin.ui.page.main.LogType
 import kotlinx.coroutines.Dispatchers
@@ -17,18 +16,22 @@ object BookingService {
 
     fun start(
         executablePath: String,
-        bookingInfo: BookingInfo
+        venueId: String,
+        startTime: String,
+        priorityList: String,
+        username: String,
+        password: String
     ): Flow<LogEntry> = flow {
         val command = mutableListOf(
             executablePath,
-            "--cdbh", bookingInfo.venueId,
-            "--start_time", bookingInfo.startTime,
+            "--cdbh", venueId,
+            "--start_time", startTime,
             "--order_date_after_today", "2",
             "--schedule_time", "08:00:01",
             "--select_pay_type", "-1",
-            "--priority_list", bookingInfo.priorityList,
-            "--user_name", bookingInfo.username,
-            "--password", bookingInfo.password
+            "--priority_list", priorityList,
+            "--user_name", username,
+            "--password", password
         )
 
 
@@ -60,14 +63,11 @@ object BookingService {
                 }
             }
             val status = process?.waitFor()
-            println(status)
-            println(status == 0)
-            if (status == 0)
-                emit(LogEntry(type = LogType.SUCCESS))
-            else if(status == 1)
-                emit(LogEntry(type = LogType.FAILED))
-            else
-                emit(LogEntry(type = LogType.ABORT))
+            when (status) {
+                0 -> emit(LogEntry(type = LogType.SUCCESS))
+                1 -> emit(LogEntry(type = LogType.FAILED))
+                else -> emit(LogEntry(type = LogType.ABORT))
+            }
         } catch (e: Exception) {
             emit(
                 LogEntry(

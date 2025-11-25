@@ -15,12 +15,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ShowChart
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.FileOpen
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Person
@@ -41,6 +44,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -50,7 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -59,7 +63,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import com.darkrockstudios.libraries.mpfilepicker.FilePicker
 import io.github.mohammedalaamorsi.colorpicker.ColorPicker
-import io.github.mohammedalaamorsi.colorpicker.ColorPickerType
 import io.github.mohammedalaamorsi.colorpicker.ext.toHex
 import io.github.mohammedalaamorsi.colorpicker.ext.transparentBackground
 
@@ -199,6 +202,7 @@ fun AccountDialog(viewModel: SettingsViewModel) {
 fun ThemeDialog(viewModel: SettingsViewModel) {
     val settingUiState by viewModel.uiState.collectAsState()
     val color = settingUiState.color
+
     BasicAlertDialog(
         onDismissRequest = { viewModel.onAction(SettingsAction.DismissThemeDialog) },
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -212,7 +216,9 @@ fun ThemeDialog(viewModel: SettingsViewModel) {
             color = MaterialTheme.colorScheme.surfaceContainerHigh
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
+                modifier = Modifier
+                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
@@ -231,7 +237,6 @@ fun ThemeDialog(viewModel: SettingsViewModel) {
                     ColorPicker {
                         viewModel.onAction(SettingsAction.SelectColor(it))
                     }
-
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -272,6 +277,47 @@ fun ThemeDialog(viewModel: SettingsViewModel) {
                     )
                 }
 
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            MaterialTheme.colorScheme.surfaceContainer,
+                            RoundedCornerShape(12.dp)
+                        )
+                        .clickable {
+                            viewModel.onAction(SettingsAction.UpdateDarkMode(!settingUiState.darkMode))
+                        }
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Outlined.DarkMode,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "深色模式",
+                            style = MaterialTheme.typography.titleMedium, // 稍微加大字体
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    Switch(
+                        checked = settingUiState.darkMode,
+                        onCheckedChange = { isChecked ->
+                            viewModel.onAction(SettingsAction.UpdateDarkMode(isChecked))
+                        },
+                        modifier = Modifier.scale(0.9f)
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Row(
@@ -288,7 +334,7 @@ fun ThemeDialog(viewModel: SettingsViewModel) {
 
                     Button(
                         onClick = {
-                            viewModel.onAction(SettingsAction.SaveColor)
+                            viewModel.onAction(SettingsAction.SaveTheme)
                             viewModel.onAction(SettingsAction.DismissThemeDialog)
                         }
                     ) {
@@ -296,7 +342,6 @@ fun ThemeDialog(viewModel: SettingsViewModel) {
                     }
                 }
             }
-
         }
     }
 }
@@ -313,7 +358,6 @@ fun SettingContent(modifier: Modifier, viewModel: SettingsViewModel) {
             .padding(24.dp)
     ) {
 
-        // Avatar Section
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -322,7 +366,7 @@ fun SettingContent(modifier: Modifier, viewModel: SettingsViewModel) {
                 modifier = Modifier
                     .size(96.dp)
                     .background(
-                        Brush.linearGradient(listOf(Color(0xFFEADDFF), Color(0xFFD0BCFF))),
+                        MaterialTheme.colorScheme.primary,
                         CircleShape
                     )
                     .padding(4.dp)
@@ -351,7 +395,6 @@ fun SettingContent(modifier: Modifier, viewModel: SettingsViewModel) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Stats Grid
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             StatCard(
                 Modifier.weight(1f),
@@ -372,7 +415,6 @@ fun SettingContent(modifier: Modifier, viewModel: SettingsViewModel) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Menu
         Text("功能入口", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
         Spacer(modifier = Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -427,10 +469,10 @@ fun StatCard(
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column {
-                Text(value, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Text(value, fontWeight = FontWeight.Bold, fontSize = 24.sp)
                 Text(
                     label,
-                    fontSize = 10.sp,
+                    fontSize = 16.sp,
                     color = MaterialTheme.colorScheme.onPrimary,
                     fontWeight = FontWeight.Bold
                 )
@@ -438,6 +480,7 @@ fun StatCard(
         }
     }
 }
+
 
 @Composable
 fun MenuCard(
@@ -448,15 +491,23 @@ fun MenuCard(
     onClick: () -> Unit
 ) {
     Card(
-        modifier = modifier.clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        onClick = onClick,
         shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(8.dp)
-
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 8.dp,
+            pressedElevation = 8.dp,
+            focusedElevation = 8.dp,
+            hoveredElevation = 10.dp
+        )
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Box(
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier
+                    .size(28.dp)
                     .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
@@ -468,10 +519,10 @@ fun MenuCard(
                 )
             }
             Spacer(modifier = Modifier.height(6.dp))
-            Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             Text(
                 sub,
-                fontSize = 10.sp,
+                fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
             )
         }
