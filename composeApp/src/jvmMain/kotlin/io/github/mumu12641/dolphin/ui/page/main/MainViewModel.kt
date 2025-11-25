@@ -7,6 +7,7 @@ import io.github.mumu12641.dolphin.service.BookingService
 import io.github.mumu12641.dolphin.util.Constant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -157,32 +158,33 @@ class MainViewModel : ViewModel() {
 
 
     fun startBooking() {
-        _uiState.update {
-            it.copy(
-                logMessages = emptyList(),
-                bookingState = BookingState.RUNNING
-            )
+        val username = _uiState.value.username
+        val password = _uiState.value.password
+
+        if (username.isBlank() || password.isBlank()) {
+            addLog("❌ 用户信息未填写。请前往设置页面填写。", LogType.FAILED)
+            _uiState.update { it.copy(bookingState = BookingState.FAILED) }
+            return
         }
 
-        viewModelScope.launch {
-            val username = _uiState.value.username
-            val password = _uiState.value.password
-
-            if (username.isBlank() || password.isBlank()) {
-                addLog("❌ 用户信息未填写。请前往设置页面填写。", LogType.ERROR)
-                _uiState.update { it.copy(bookingState = BookingState.ABORT) }
-                return@launch
+        viewModelScope.launch(Dispatchers.IO) {
+            _uiState.update {
+                it.copy(
+                    logMessages = emptyList(),
+                    bookingState = BookingState.RUNNING
+                )
             }
+            delay(500)
 
             val courts = _uiState.value.selectedCourts.toMutableList()
             if (_uiState.value.courtCount > 0 && courts.size < _uiState.value.courtCount) {
                 val remainingCourts =
                     (1.._uiState.value.courtCount).filter { it !in courts }.shuffled()
                 courts.addAll(remainingCourts)
-                _uiState.update { it.copy(selectedCourts = courts) }
+//                _uiState.update { it.copy(selectedCourts = courts) }
             }
             val priorityList =
-                _uiState.value.selectedCourts.mapNotNull {
+                courts.mapNotNull {
                     Constant.COURT_IDS[_uiState.value.selectedVenue]?.get(
                         it
                     )
@@ -191,7 +193,7 @@ class MainViewModel : ViewModel() {
 
             val executablePath =
                 File(System.getProperty("user.dir"), "core/Goodminton.exe").absolutePath
-//            val executablePath = File("D:\\Softwares\\Dolphin", "Goodminton.exe").absolutePath
+//            val executablePath = File("D:\\Softwares\\Dolphin\\core", "Goodminton.exe").absolutePath
 
             BookingService.start(
                 executablePath = executablePath,
@@ -211,7 +213,7 @@ class MainViewModel : ViewModel() {
                             if (logEntry.type == LogType.SUCCESS) BookingState.SUCCESS else if (logEntry.type == LogType.FAILED) BookingState.FAILED else BookingState.ABORT
                         val historyEntry = HistoryEntry(
                             venue = _uiState.value.selectedVenue,
-                            priority = _uiState.value.selectedCourts,
+                            priority = courts,
                             timeSlot = _uiState.value.selectedTimeSlot,
                             status = statusCode
                         )
@@ -219,13 +221,16 @@ class MainViewModel : ViewModel() {
                             historyRepository.addHistoryEntry(_uiState.value.username, historyEntry)
                         }
                         _uiState.update {
-                            it.copy(bookingState = bookingState)
+                            it.copy(bookingState = bookingState, selectedCourts = courts)
                         }
                     }
 
                     else -> {
                         _uiState.update {
-                            it.copy(logMessages = it.logMessages + logEntry)
+                            it.copy(
+                                logMessages = it.logMessages + logEntry,
+                                selectedCourts = courts
+                            )
                         }
                     }
                 }
@@ -235,8 +240,7 @@ class MainViewModel : ViewModel() {
 
     fun stopBooking() {
         BookingService.stop()
-        addLog("🛑 预约已中止。", LogType.INFO)
-        _uiState.update { it.copy(bookingState = BookingState.ABORT) }
+        addLog("🛑 预约已中止。", LogType.ABORT)
     }
 
 
