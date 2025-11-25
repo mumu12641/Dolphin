@@ -268,7 +268,7 @@ class MainViewModel : ViewModel() {
     }
 
     private fun addLog(message: String, type: LogType) {
-        val timestamp = SimpleDateFormat("yyyy-mm-dd HH:mm:ss.SSS").format(Date())
+        val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(Date())
         _uiState.update {
             it.copy(logMessages = it.logMessages + LogEntry(message, timestamp, type))
         }
