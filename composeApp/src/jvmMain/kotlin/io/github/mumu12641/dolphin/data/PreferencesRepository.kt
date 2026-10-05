@@ -17,6 +17,7 @@ object PreferencesRepository {
     private val PASSWORD_KEY = stringPreferencesKey("password")
     private val THEME_COLOR_KEY = stringPreferencesKey("theme_color")
     private val DARK_THEME_KEY = stringPreferencesKey("dark_theme")
+    private val EXECUTION_TIME_KEY = stringPreferencesKey("execution_time")
 
     private val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
         produceFile = {
@@ -41,10 +42,12 @@ object PreferencesRepository {
         }
     val themeFlow: Flow<Pair<String, String>> = colorDataStore.data
         .map { preferences ->
-            val color: String = preferences[THEME_COLOR_KEY] ?: "0x89CFF0"
+            val color: String = preferences[THEME_COLOR_KEY] ?: "#89CFF0"
             val darkTheme: String = preferences[DARK_THEME_KEY] ?: "false"
             Pair(color, darkTheme)
         }
+    val executionTimeFlow: Flow<String> = colorDataStore.data
+        .map { preferences -> preferences[EXECUTION_TIME_KEY] ?: "08:00:03" }
 
     suspend fun saveUser(username: String, password: String) {
         dataStore.edit { preferences ->
@@ -57,6 +60,12 @@ object PreferencesRepository {
         colorDataStore.edit { preferences ->
             preferences[THEME_COLOR_KEY] = color
             preferences[DARK_THEME_KEY] = darkTheme
+        }
+    }
+
+    suspend fun saveExecutionTime(time: String) {
+        colorDataStore.edit { preferences ->
+            preferences[EXECUTION_TIME_KEY] = time
         }
     }
 }

@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.rounded.ArrowRight
@@ -30,6 +31,7 @@ import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material.icons.rounded.Update
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -43,13 +45,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mumu12641.dolphin.ui.page.main.BookingState
-import io.github.mumu12641.dolphin.ui.page.main.LogEntry
-import io.github.mumu12641.dolphin.ui.page.main.LogType
+import io.github.mumu12641.dolphin.model.LogEntry
+import io.github.mumu12641.dolphin.model.LogLevel
+import io.github.mumu12641.dolphin.model.displayEmoji
+import io.github.mumu12641.dolphin.model.displayTime
 import io.github.mumu12641.dolphin.ui.page.main.MainViewModel
 
 @Composable
@@ -274,8 +279,8 @@ fun RunningScreen(
         Card(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-            elevation = CardDefaults.cardElevation(8.dp)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+            elevation = CardDefaults.cardElevation(2.dp)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Row(
@@ -291,8 +296,8 @@ fun RunningScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             "日志",
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -314,42 +319,49 @@ fun LogContent(logMessages: List<LogEntry>) {
         }
     }
 
-    LazyColumn(
-        state = lazyListState,
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        items(logMessages) { logEntry ->
-            val timestampColor = MaterialTheme.colorScheme.onSurfaceVariant
-            val messageColor = when (logEntry.type) {
-                LogType.INFO -> MaterialTheme.colorScheme.primary
-                LogType.ERROR -> MaterialTheme.colorScheme.error
-                LogType.WARNING -> MaterialTheme.colorScheme.tertiary
-                LogType.DEBUG -> MaterialTheme.colorScheme.secondary
-                else -> MaterialTheme.colorScheme.primary
-            }
-            Row(verticalAlignment = Alignment.Top) {
-                val annotatedString = buildAnnotatedString {
-                    withStyle(style = SpanStyle(color = timestampColor)) {
-                        append("${logEntry.timestamp} ")
-                    }
-                    withStyle(style = SpanStyle(color = messageColor)) {
-                        append(
-                            if (!logEntry.exeLog) {
-                                "- ${logEntry.type} - ${logEntry.message}"
-                            } else {
-                                logEntry.message
-                            }
-                        )
-                    }
-                }
+    if (logMessages.isEmpty()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                "等待预约程序输出…",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        return
+    }
 
-                Text(
-                    text = annotatedString,
-                    modifier = Modifier.padding(4.dp),
-                    style = MaterialTheme.typography.bodyMedium
-                )
+    SelectionContainer {
+        LazyColumn(
+            state = lazyListState,
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            items(logMessages) { logEntry ->
+                LogRow(logEntry)
             }
         }
     }
+}
+
+@Composable
+private fun LogRow(entry: LogEntry) {
+    val colors = MaterialTheme.colorScheme
+    val messageColor = when (entry.level) {
+        LogLevel.DEBUG -> colors.onSurfaceVariant
+        LogLevel.INFO -> colors.onSurface
+        LogLevel.WARNING -> colors.tertiary
+        LogLevel.ERROR -> colors.error
+    }
+    val line = buildAnnotatedString {
+        withStyle(SpanStyle(color = colors.onSurfaceVariant, fontFamily = FontFamily.Monospace)) {
+            append(entry.displayTime())
+        }
+        append("  ${entry.displayEmoji()}  ")
+        withStyle(SpanStyle(color = messageColor)) { append(entry.message) }
+    }
+    Text(
+        text = line,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 7.dp),
+        style = MaterialTheme.typography.bodyMedium
+    )
+    HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
 }

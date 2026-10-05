@@ -19,3 +19,5 @@ captures
 node_modules/
 .database/
 .prefs/
+__pycache__/
+*.pyc

@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
@@ -45,18 +47,39 @@ fun MainScreen(viewModel: MainViewModel = MainViewModel(), onNavigateToSettings:
 
     Scaffold(
         topBar = {
-            LargeTopAppBar(
-                title = {
-                    Row(modifier = Modifier.padding(start = 16.dp)) {
-                        Text("欢迎使用Dolphin🐬")
+            if (bookingState == BookingState.CONFIG) {
+                LargeTopAppBar(
+                    title = {
+                        Text(
+                            if (mainUiState.configStep == BookingStep.REVIEW) "确认预约" else "Dolphin",
+                            modifier = Modifier.padding(start = 16.dp)
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { viewModel.onAction(MainAction.BackToHome) }) {
+                            Icon(Icons.Default.Home, contentDescription = "返回首页")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = onNavigateToSettings) {
+                            Icon(Icons.Default.Settings, contentDescription = "设置")
+                        }
                     }
-                },
-                actions = {
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                )
+            } else {
+                LargeTopAppBar(
+                    title = {
+                        Row(modifier = Modifier.padding(start = 16.dp)) {
+                            Text("欢迎使用Dolphin🐬")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = onNavigateToSettings) {
+                            Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        }
                     }
-                }
-            )
+                )
+            }
         },
         floatingActionButton = {
             AnimatedContent(
@@ -72,20 +95,29 @@ fun MainScreen(viewModel: MainViewModel = MainViewModel(), onNavigateToSettings:
                     }
 
                     BookingState.CONFIG -> {
-                        Column(
-                            horizontalAlignment = Alignment.End,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            ExtendedFloatingActionButton(
-                                onClick = { viewModel.onAction(MainAction.BackToHome) },
-                                icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回") },
-                                text = { Text("返回主页") }
-                            )
-                            ExtendedFloatingActionButton(
-                                onClick = { viewModel.startBooking() },
-                                icon = { Icon(Icons.Default.PlayArrow, "开始") },
-                                text = { Text("开始预约") }
-                            )
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            if (mainUiState.configStep != BookingStep.VENUE) {
+                                ExtendedFloatingActionButton(
+                                    onClick = viewModel::previousConfigStep,
+                                    icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null) },
+                                    text = { Text("上一步") },
+                                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = androidx.compose.material3.MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                            if (mainUiState.configStep == BookingStep.REVIEW) {
+                                ExtendedFloatingActionButton(
+                                    onClick = viewModel::startBooking,
+                                    icon = { Icon(Icons.Default.PlayArrow, contentDescription = null) },
+                                    text = { Text("开始预约") }
+                                )
+                            } else {
+                                ExtendedFloatingActionButton(
+                                    onClick = viewModel::nextConfigStep,
+                                    icon = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                                    text = { Text("继续") }
+                                )
+                            }
                         }
                     }
 
@@ -142,8 +174,9 @@ fun MainScreen(viewModel: MainViewModel = MainViewModel(), onNavigateToSettings:
                     viewModel,
                 )
 
-                BookingState.CONFIG -> ConfigScreen(
-                    viewModel,
+                BookingState.CONFIG -> BookingFlowScreen(
+                    state = mainUiState,
+                    viewModel = viewModel
                 )
 
                 BookingState.RUNNING, BookingState.ABORT, BookingState.FAILED, BookingState.SUCCESS ->
