@@ -1,5 +1,33 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
+val bookingSourceDir = rootProject.layout.projectDirectory.dir("python")
+val bookingResourceRoot = layout.buildDirectory.dir("generated/appResources")
+val bookingRuntimeDir = bookingResourceRoot.map { it.dir("windows-x64/booking") }
+val bookingCacheDir = rootProject.layout.buildDirectory.dir("python-cache")
+val tesseractRuntime = providers.gradleProperty("bookingTesseractDir")
+    .map { file(it) }
+    .orElse(rootProject.file("python/tesseract-runtime-windows-x64.zip"))
+
+val stageBookingRuntime by tasks.registering(Exec::class) {
+    val stageScript = rootProject.layout.projectDirectory.file("tools/stage_booking_runtime.py")
+    inputs.dir(bookingSourceDir)
+    inputs.files(tesseractRuntime)
+    inputs.file(stageScript)
+    outputs.dir(bookingRuntimeDir)
+    commandLine(
+        providers.gradleProperty("bookingBuildPython").orElse("python").get(),
+        stageScript.asFile.absolutePath,
+        "--source", bookingSourceDir.asFile.absolutePath,
+        "--tesseract", tesseractRuntime.get().absolutePath,
+        "--output", bookingRuntimeDir.get().asFile.absolutePath,
+        "--cache", bookingCacheDir.get().asFile.absolutePath
+    )
+}
+
+tasks.matching { it.name == "prepareAppResources" }.configureEach {
+    dependsOn(stageBookingRuntime)
+}
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.composeMultiplatform)
@@ -68,12 +96,22 @@ compose.desktop {
     application {
         mainClass = "io.github.mumu12641.dolphin.MainKt"
 
+        buildTypes {
+            release {
+                proguard {
+                    // Optional classes in desktop dependencies currently prevent ProGuard from resolving the release classpath.
+                    isEnabled.set(false)
+                }
+            }
+        }
+
         nativeDistributions {
             targetFormats(TargetFormat.Msi)
+            appResourcesRootDir.set(bookingResourceRoot)
             modules("jdk.unsupported")
             modules("jdk.unsupported.desktop")
             packageName = "Dolphin"
-            packageVersion = "1.0.0"
+            packageVersion = "1.1.0"
 
             windows {
                 iconFile.set(project.layout.projectDirectory.file("src/jvmMain/resources/icon.ico"))

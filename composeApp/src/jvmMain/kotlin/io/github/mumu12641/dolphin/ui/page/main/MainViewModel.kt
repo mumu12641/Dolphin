@@ -3,26 +3,32 @@ package io.github.mumu12641.dolphin.ui.page.main
 import io.github.mumu12641.dolphin.data.PreferencesRepository
 import io.github.mumu12641.dolphin.di.DatabaseModule
 import io.github.mumu12641.dolphin.model.HistoryEntry
+import io.github.mumu12641.dolphin.model.LogEntry
+import io.github.mumu12641.dolphin.model.LogLevel
+import io.github.mumu12641.dolphin.model.formattedLine
+import io.github.mumu12641.dolphin.service.BookingEvent
+import io.github.mumu12641.dolphin.service.BookingOutcome
 import io.github.mumu12641.dolphin.service.BookingService
 import io.github.mumu12641.dolphin.util.Constant
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import moe.tlaster.precompose.viewmodel.ViewModel
 import moe.tlaster.precompose.viewmodel.viewModelScope
 import java.io.File
-import java.io.IOException
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
+enum class BookingStep { VENUE, TIME, COURT, REVIEW }
+enum class BookingState { IDLE, CONFIG, RUNNING, SUCCESS, FAILED, ABORT }
 
 sealed class MainAction {
     data class SelectVenue(val venue: String) : MainAction()
@@ -38,60 +44,52 @@ sealed class MainAction {
 }
 
 data class MainUiState(
-//    welcome
     val username: String = "",
     val password: String = "",
     val history: List<HistoryEntry> = emptyList(),
-//    config
     val selectedVenue: String = Constant.VENUES.first(),
     val selectedCourts: List<Int> = emptyList(),
     val selectedTimeSlot: String = Constant.TIME_SLOTS[5],
-//    constants
+    val configStep: BookingStep = BookingStep.VENUE,
+    val executionTime: String = "08:00:03",
+    val targetDate: LocalDate = targetBookingDate(LocalDateTime.now(), "08:00:03"),
     val venues: List<String> = Constant.VENUES,
-    val courtCount: Int = Constant.VENUE_COURT_COUNTS[Constant.VENUES.first()]!!,
-//    run
+    val courtCount: Int = Constant.VENUE_COURT_COUNTS[Constant.VENUES.first()] ?: 0,
     val logMessages: List<LogEntry> = emptyList(),
-//    others
-    val bookingState: BookingState = BookingState.IDLE,
+    val bookingState: BookingState = BookingState.IDLE
 )
-
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModel : ViewModel() {
-
     private val historyRepository = DatabaseModule.historyRepository
-
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState = _uiState.asStateFlow()
-
+    @Volatile private var bookingActive = false
+    @Volatile private var stopPending = false
 
     init {
         viewModelScope.launch {
-            PreferencesRepository.userFlow
-                .flatMapLatest { user ->
-                    val username = user.first
-                    val password = user.second
-                    if (username.isNotBlank()) {
-                        historyRepository.getHistoryByUsername(username).map { userHistory ->
-                            _uiState.value.copy(
-                                username = username,
-                                password = password,
-                                history = userHistory?.history ?: emptyList()
-                            )
-                        }
-                    } else {
-                        flowOf(
-                            _uiState.value.copy(
-                                username = "",
-                                password = "",
-                                history = emptyList()
-                            )
-                        )
+            PreferencesRepository.userFlow.flatMapLatest { (username, password) ->
+                if (username.isBlank()) {
+                    flowOf(Triple("", "", emptyList<HistoryEntry>()))
+                } else {
+                    historyRepository.getHistoryByUsername(username).map {
+                        Triple(username, password, it?.history ?: emptyList())
                     }
                 }
-                .collect { state ->
-                    _uiState.value = state
+            }.collect { (username, password, history) ->
+                _uiState.update { it.copy(username = username, password = password, history = history) }
+            }
+        }
+        viewModelScope.launch {
+            PreferencesRepository.executionTimeFlow.collect { time ->
+                _uiState.update {
+                    it.copy(
+                        executionTime = time,
+                        targetDate = targetBookingDate(LocalDateTime.now(), time)
+                    )
                 }
+            }
         }
     }
 
@@ -99,197 +97,217 @@ class MainViewModel : ViewModel() {
         when (action) {
             is MainAction.SelectVenue -> onVenueSelected(action.venue)
             is MainAction.ClickCourt -> onCourtClicked(action.courtNumber)
-            is MainAction.SelectTimeSlot -> _uiState.update { it.copy(selectedTimeSlot = action.timeSlot) }
+            is MainAction.SelectTimeSlot -> {
+                if (action.timeSlot in Constant.TIME_SLOTS) {
+                    _uiState.update { it.copy(selectedTimeSlot = action.timeSlot) }
+                }
+            }
             is MainAction.StartConfigWithHistory -> {
+                val entry = action.historyEntry
+                val count = Constant.VENUE_COURT_COUNTS[entry.venue] ?: return
+                if (entry.timeSlot !in Constant.TIME_SLOTS || bookingActive) return
                 _uiState.update {
                     it.copy(
-                        selectedVenue = action.historyEntry.venue,
-                        selectedCourts = action.historyEntry.priority,
-                        selectedTimeSlot = action.historyEntry.timeSlot,
+                        selectedVenue = entry.venue,
+                        selectedCourts = entry.priority.distinct().filter { court -> court in 1..count },
+                        selectedTimeSlot = entry.timeSlot,
+                        courtCount = count,
+                        configStep = BookingStep.REVIEW,
+                        targetDate = targetBookingDate(LocalDateTime.now(), it.executionTime),
                         bookingState = BookingState.CONFIG
                     )
                 }
             }
-
             MainAction.ClearSelectedCourts -> _uiState.update { it.copy(selectedCourts = emptyList()) }
-            MainAction.StartConfig -> _uiState.update {
-                it.copy(
-                    selectedVenue = Constant.VENUES.first(),
-                    selectedCourts = emptyList(),
-                    selectedTimeSlot = Constant.TIME_SLOTS[5],
-                    bookingState = BookingState.CONFIG
-                )
+            MainAction.StartConfig -> {
+                if (bookingActive) return
+                _uiState.update {
+                    it.copy(
+                        selectedVenue = Constant.VENUES.first(),
+                        selectedCourts = emptyList(),
+                        selectedTimeSlot = Constant.TIME_SLOTS[5],
+                        courtCount = Constant.VENUE_COURT_COUNTS[Constant.VENUES.first()] ?: 0,
+                        configStep = BookingStep.VENUE,
+                        bookingState = BookingState.CONFIG
+                    )
+                }
             }
-
             MainAction.StartBooking -> startBooking()
             MainAction.StopBooking -> stopBooking()
-            MainAction.BackToHome -> _uiState.update {
-                it.copy(
-                    bookingState = BookingState.IDLE
-                )
+            MainAction.BackToHome -> {
+                if (!bookingActive) _uiState.update { it.copy(bookingState = BookingState.IDLE) }
             }
-
             MainAction.SaveLogToFile -> saveLogToFile()
         }
     }
 
+    fun nextConfigStep() {
+        _uiState.update {
+            val next = when (it.configStep) {
+                BookingStep.VENUE -> BookingStep.TIME
+                BookingStep.TIME -> BookingStep.COURT
+                BookingStep.COURT, BookingStep.REVIEW -> BookingStep.REVIEW
+            }
+            it.copy(
+                configStep = next,
+                targetDate = if (next == BookingStep.REVIEW) {
+                    targetBookingDate(LocalDateTime.now(), it.executionTime)
+                } else it.targetDate
+            )
+        }
+    }
+
+    fun previousConfigStep() {
+        _uiState.update {
+            it.copy(
+                configStep = when (it.configStep) {
+                    BookingStep.VENUE -> BookingStep.VENUE
+                    BookingStep.TIME -> BookingStep.VENUE
+                    BookingStep.COURT -> BookingStep.TIME
+                    BookingStep.REVIEW -> BookingStep.COURT
+                }
+            )
+        }
+    }
 
     fun onVenueSelected(venue: String) {
-        if (_uiState.value.selectedVenue != venue) {
-            _uiState.update {
-                it.copy(
-                    selectedVenue = venue,
-                    selectedCourts = emptyList(),
-                    courtCount = Constant.VENUE_COURT_COUNTS[venue] ?: 0
-                )
-            }
+        if (venue !in Constant.VENUES) return
+        _uiState.update {
+            if (it.selectedVenue == venue) it else it.copy(
+                selectedVenue = venue,
+                selectedCourts = emptyList(),
+                courtCount = Constant.VENUE_COURT_COUNTS[venue] ?: 0
+            )
         }
     }
 
     fun onCourtClicked(courtNumber: Int) {
-        val newSelectedCourts = _uiState.value.selectedCourts.toMutableList()
-        if (newSelectedCourts.contains(courtNumber)) {
-            newSelectedCourts.remove(courtNumber)
-        } else {
-            newSelectedCourts.add(courtNumber)
+        _uiState.update {
+            if (courtNumber !in 1..it.courtCount) it else it.copy(
+                selectedCourts = if (courtNumber in it.selectedCourts) {
+                    it.selectedCourts - courtNumber
+                } else {
+                    it.selectedCourts + courtNumber
+                }
+            )
         }
-        _uiState.update { it.copy(selectedCourts = newSelectedCourts) }
     }
 
-
     fun startBooking() {
-        val username = _uiState.value.username
-        val password = _uiState.value.password
-
-        if (username.isBlank() || password.isBlank()) {
-            addLog("❌ 用户信息未填写。请前往设置页面填写。", LogType.FAILED)
-            _uiState.update { it.copy(bookingState = BookingState.FAILED) }
+        if (bookingActive) return
+        val config = _uiState.value
+        if (config.bookingState != BookingState.CONFIG || config.configStep != BookingStep.REVIEW) return
+        val currentTarget = targetBookingDate(LocalDateTime.now(), config.executionTime)
+        if (currentTarget != config.targetDate) {
+            _uiState.update { it.copy(targetDate = currentTarget) }
+            return
+        }
+        if (config.username.isBlank() || config.password.isBlank()) {
+            _uiState.update {
+                it.copy(
+                    bookingState = BookingState.FAILED,
+                    logMessages = listOf(log("请在设置中填写账号和密码", LogLevel.ERROR, "👤"))
+                )
+            }
             return
         }
 
+        val venueId = Constant.VENUE_IDS[config.selectedVenue] ?: return
+        val courtIds = Constant.COURT_IDS[config.selectedVenue] ?: return
+        val selected = config.selectedCourts.distinct().filter { it in 1..config.courtCount }
+        val courts = selected + (1..config.courtCount).filter { it !in selected }.shuffled()
+        val runFlow = BookingService.start(
+            venueId = venueId,
+            startTime = config.selectedTimeSlot.substringBefore("-"),
+            priorityList = courts.mapNotNull(courtIds::get).joinToString(","),
+            username = config.username,
+            password = config.password,
+            scheduleTime = config.executionTime
+        )
+        bookingActive = true
+        stopPending = false
+        _uiState.update {
+            it.copy(
+                bookingState = BookingState.RUNNING,
+                logMessages = emptyList(),
+                selectedCourts = courts
+            )
+        }
         viewModelScope.launch(Dispatchers.IO) {
-            _uiState.update {
-                it.copy(
-                    logMessages = emptyList(),
-                    bookingState = BookingState.RUNNING
-                )
-            }
-            delay(500)
-
-            val courts = _uiState.value.selectedCourts.toMutableList()
-            if (_uiState.value.courtCount > 0 && courts.size < _uiState.value.courtCount) {
-                val remainingCourts =
-                    (1.._uiState.value.courtCount).filter { it !in courts }.shuffled()
-                courts.addAll(remainingCourts)
-//                _uiState.update { it.copy(selectedCourts = courts) }
-            }
-            val priorityList =
-                courts.mapNotNull {
-                    Constant.COURT_IDS[_uiState.value.selectedVenue]?.get(
-                        it
-                    )
-                }
-                    .joinToString(",")
-
-            val executablePath =
-                File(System.getProperty("user.dir"), "core/Goodminton.exe").absolutePath
-//            val executablePath = File("D:\\Softwares\\Dolphin\\core", "Goodminton.exe").absolutePath
-
-            BookingService.start(
-                executablePath = executablePath,
-                venueId = Constant.VENUE_IDS[_uiState.value.selectedVenue]!!,
-                startTime = _uiState.value.selectedTimeSlot.split("-").first(),
-                priorityList = priorityList,
-                username = username,
-                password = password
-            ).onCompletion {
-
-            }.collect { logEntry ->
-                when (logEntry.type) {
-                    LogType.SUCCESS, LogType.FAILED, LogType.ABORT -> {
-                        val statusCode =
-                            if (logEntry.type == LogType.SUCCESS) 0 else if (logEntry.type == LogType.FAILED) 1 else 2
-                        val bookingState =
-                            if (logEntry.type == LogType.SUCCESS) BookingState.SUCCESS else if (logEntry.type == LogType.FAILED) BookingState.FAILED else BookingState.ABORT
-                        val historyEntry = HistoryEntry(
-                            venue = _uiState.value.selectedVenue,
-                            priority = courts,
-                            timeSlot = _uiState.value.selectedTimeSlot,
-                            status = statusCode
-                        )
-                        withContext(Dispatchers.IO) {
-                            historyRepository.addHistoryEntry(_uiState.value.username, historyEntry)
+            try {
+                runFlow.collect { event ->
+                    when (event) {
+                        is BookingEvent.Message -> _uiState.update {
+                            it.copy(logMessages = it.logMessages + event.entry)
                         }
-                        _uiState.update {
-                            it.copy(bookingState = bookingState, selectedCourts = courts)
-                        }
-                    }
-
-                    else -> {
-                        _uiState.update {
-                            it.copy(
-                                logMessages = it.logMessages + logEntry,
-                                selectedCourts = courts
-                            )
+                        is BookingEvent.Finished -> {
+                            val result = when (event.outcome) {
+                                BookingOutcome.SUCCESS -> BookingState.SUCCESS
+                                BookingOutcome.FAILED -> BookingState.FAILED
+                                BookingOutcome.ABORT -> BookingState.ABORT
+                            }
+                            _uiState.update { it.copy(bookingState = result) }
+                            val status = when (result) {
+                                BookingState.SUCCESS -> 0
+                                BookingState.FAILED -> 1
+                                else -> 2
+                            }
+                            try {
+                                historyRepository.addHistoryEntry(
+                                    config.username,
+                                    HistoryEntry(
+                                        venue = config.selectedVenue,
+                                        priority = courts,
+                                        timeSlot = config.selectedTimeSlot,
+                                        status = status
+                                    )
+                                )
+                            } catch (error: Exception) {
+                                addLog("记录保存失败：${error.message}", LogLevel.ERROR, "🗂️")
+                            }
                         }
                     }
                 }
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                addLog("预约运行失败：${error.message}", LogLevel.ERROR, "🧨")
+                _uiState.update { it.copy(bookingState = BookingState.FAILED) }
+            } finally {
+                bookingActive = false
+                stopPending = false
             }
         }
     }
 
     fun stopBooking() {
-        BookingService.stop()
-        addLog("🛑 预约已中止。", LogType.ABORT)
+        if (!bookingActive || stopPending || _uiState.value.bookingState != BookingState.RUNNING) return
+        stopPending = true
+        addLog("正在停止预约…", LogLevel.INFO, "✋")
+        viewModelScope.launch(Dispatchers.IO) { BookingService.stop() }
     }
 
-
     fun saveLogToFile() {
+        val messages = _uiState.value.logMessages
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val appDir = File(System.getProperty("user.dir"))
-                val logDir = File(appDir, "log")
-                if (!logDir.exists()) {
-                    logDir.mkdirs()
+                val directory = File(System.getProperty("user.home"), "Dolphin/logs")
+                check(directory.isDirectory || directory.mkdirs()) { "无法创建日志目录：$directory" }
+                val filename = "dolphin_${LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS"))}.log"
+                val file = File(directory, filename)
+                file.bufferedWriter().use { writer ->
+                    messages.forEach { writer.appendLine(it.formattedLine()) }
                 }
-                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
-                val existingLogFiles = logDir.listFiles { _, name ->
-                    name.startsWith("dolphin_") && name.endsWith(".log")
-                } ?: emptyArray()
-                val nextNumber = existingLogFiles.size + 1
-                val fileNumber = String.format("%03d", nextNumber)
-                val logFile = File(logDir, "dolphin_${fileNumber}_${timestamp}.log")
-                logFile.bufferedWriter().use { writer ->
-                    _uiState.value.logMessages.forEach {
-                        writer.write("[${it.timestamp}] ${it.message}\n")
-                    }
-                }
-                addLog("📝 日志已保存到: ${logFile.absolutePath}", LogType.INFO)
-            } catch (e: IOException) {
-                addLog("❌ 日志保存失败: ${e.message}", LogType.ERROR)
+                addLog("日志已保存：${file.absolutePath}", LogLevel.INFO, "💾")
+            } catch (error: Exception) {
+                addLog("日志保存失败：${error.message}", LogLevel.ERROR, "📝")
             }
         }
     }
 
-    private fun addLog(message: String, type: LogType) {
-        val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(Date())
-        _uiState.update {
-            it.copy(logMessages = it.logMessages + LogEntry(message, timestamp, type))
-        }
+    private fun log(message: String, level: LogLevel, emoji: String) =
+        LogEntry(message, level, emoji = emoji)
+
+    private fun addLog(message: String, level: LogLevel, emoji: String) {
+        _uiState.update { it.copy(logMessages = it.logMessages + log(message, level, emoji)) }
     }
 }
-
-enum class BookingState {
-    IDLE, RUNNING, ABORT, CONFIG, FAILED, SUCCESS
-}
-
-enum class LogType {
-    INFO, WARNING, DEBUG, ERROR, SUCCESS, FAILED, ABORT
-}
-
-data class LogEntry(
-    val message: String = "",
-    val timestamp: String = "",
-    val type: LogType = LogType.INFO,
-    val exeLog: Boolean = false
-)
