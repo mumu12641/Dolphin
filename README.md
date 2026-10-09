@@ -12,10 +12,6 @@
 </p>
 </div>
 
-## :warning: Warning
-
-This project is for **educational purposes only**. This repository does not provide any script services or automation tools.
-
 ## :book: Features
 
 - :calendar: **Smart Reservation**: Easily book venues with a few taps.
