@@ -23,6 +23,7 @@ class FakeClient:
         self.created: list[str] = []
         self.paid: list[OrderReference] = []
         self.payment_error = payment_error
+        self.events: list[str] = []
 
     def get_booking_token(self, _: BookingConfig) -> str:
         return "a" * 32
@@ -31,6 +32,7 @@ class FakeClient:
         self, _: BookingConfig, venue_id: str, token: str
     ) -> OrderReference:
         self.created.append(venue_id)
+        self.events.append(f"create:{venue_id}")
         if venue_id == "295":
             raise VenueUnavailableError()
         return OrderReference("123", "456")
@@ -39,6 +41,7 @@ class FakeClient:
         self, _: BookingConfig, order: OrderReference, token: str
     ) -> None:
         self.paid.append(order)
+        self.events.append("pay")
         if self.payment_error:
             raise PaymentError("ambiguous")
 
@@ -72,3 +75,10 @@ class WorkflowTests(TestCase):
 
         self.assertEqual(client.created, ["295", "134"])
         self.assertEqual(len(client.paid), 1)
+
+    def test_pays_only_after_the_order_is_created(self) -> None:
+        client = FakeClient()
+
+        BookingWorkflow(config(), client, self.logger).run()  # type: ignore[arg-type]
+
+        self.assertEqual(client.events, ["create:295", "create:134", "pay"])

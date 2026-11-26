@@ -1,7 +1,10 @@
 import logging
 from unittest import TestCase
 
+import requests
+
 from booking_assistant.client import (
+    CREATE_ORDER_PATH,
     PAYMENT_PATH,
     BookingSiteClient,
     OrderReference,
@@ -52,6 +55,46 @@ class BookingSiteClientTests(TestCase):
 
         self.assertEqual(client.get_booking_token(config()), token)
         self.assertEqual(len(session.get_calls), 2)
+
+    def test_token_request_retries_after_network_error(self) -> None:
+        token = "0123456789abcdef0123456789abcdef"
+        session = FakeSession(
+            get_errors=[requests.ConnectionError("dns failure"), None],
+            get_responses=[
+                FakeResponse(text=f'<input name="token" value="{token}">')
+            ],
+        )
+        client = BookingSiteClient(
+            session, self.logger, token_attempts=2, token_retry_delay=0
+        )
+
+        self.assertEqual(client.get_booking_token(config()), token)
+        self.assertEqual(len(session.get_calls), 2)
+        self.assertIsNotNone(session.get_calls[0][1]["params"])
+        self.assertIsNone(session.get_calls[1][1]["params"])
+
+    def test_token_request_sends_expected_query_values(self) -> None:
+        token = "0123456789abcdef0123456789abcdef"
+        session = FakeSession(
+            get_responses=[
+                FakeResponse(text=f'<input name="token" value="{token}">')
+            ]
+        )
+        client = BookingSiteClient(session, self.logger)
+        cfg = config()
+
+        client.get_booking_token(cfg)
+
+        params = session.get_calls[0][1]["params"]
+        self.assertEqual(
+            params,
+            {
+                "cdbh": "69",
+                "date": cfg.booking_date().isoformat(),
+                "starttime": "18:00:00",
+                "endtime": "20:00:00",
+            },
+        )
 
     def test_token_reads_are_bounded(self) -> None:
         session = FakeSession(
@@ -127,6 +170,86 @@ class BookingSiteClientTests(TestCase):
         with self.assertRaises(VenueUnavailableError):
             client.create_order(config(), "295", "a" * 32)
 
+    def test_create_order_sends_expected_form_and_headers(self) -> None:
+        token = "0123456789abcdef0123456789abcdef"
+        session = FakeSession(
+            post_responses=[
+                FakeResponse(
+                    text=(
+                        '<input name="orderId" value="202610310001234567">'
+                        '<input name="reserveId" value="987654321">'
+                    )
+                )
+            ]
+        )
+        client = BookingSiteClient(session, self.logger)
+        cfg = config()
+
+        client.create_order(cfg, "295", token)
+
+        url, kwargs = session.post_calls[0]
+        self.assertTrue(url.endswith(CREATE_ORDER_PATH))
+        self.assertEqual(
+            kwargs["data"],
+            {
+                "starttime": "18:00:00",
+                "endtime": "20:00:00",
+                "partnerCardtype": "1",
+                "choosetime": "295",
+                "changdibh": "69",
+                "date": cfg.booking_date().isoformat(),
+                "token": token,
+            },
+        )
+        self.assertEqual(
+            kwargs["headers"]["Content-Type"],
+            "application/x-www-form-urlencoded",
+        )
+        self.assertIn("cdbh=69", kwargs["headers"]["Referer"])
+
+    def test_create_order_network_error_is_not_retried(self) -> None:
+        session = FakeSession(
+            post_errors=[requests.ConnectionError("connection reset")]
+        )
+        client = BookingSiteClient(session, self.logger)
+
+        with self.assertRaisesRegex(SiteProtocolError, "结果未知"):
+            client.create_order(config(), "295", "a" * 32)
+
+        self.assertEqual(len(session.post_calls), 1)
+
+    def test_create_order_http_error_is_not_retried(self) -> None:
+        session = FakeSession(
+            post_responses=[
+                FakeResponse(status_code=500),
+                FakeResponse(status_code=200),
+            ]
+        )
+        client = BookingSiteClient(session, self.logger)
+
+        with self.assertRaisesRegex(SiteProtocolError, "HTTP 500"):
+            client.create_order(config(), "295", "a" * 32)
+
+        self.assertEqual(len(session.post_calls), 1)
+
+    def test_create_order_reports_blacklisted_account(self) -> None:
+        session = FakeSession(
+            post_responses=[FakeResponse(text="您已被加入黑名单")]
+        )
+        client = BookingSiteClient(session, self.logger)
+
+        with self.assertRaisesRegex(SiteProtocolError, "黑名单"):
+            client.create_order(config(), "295", "a" * 32)
+
+    def test_create_order_rejects_response_without_ids(self) -> None:
+        session = FakeSession(
+            post_responses=[FakeResponse(text="<html>order page</html>")]
+        )
+        client = BookingSiteClient(session, self.logger)
+
+        with self.assertRaisesRegex(SiteProtocolError, "缺少 orderId"):
+            client.create_order(config(), "295", "a" * 32)
+
     def test_payment_is_blocked_before_any_http_request_by_default(self) -> None:
         session = FakeSession()
         client = BookingSiteClient(session, self.logger)
@@ -144,6 +267,131 @@ class BookingSiteClientTests(TestCase):
 
         self.assertEqual(len(session.post_calls), 1)
         self.assertTrue(session.post_calls[0][0].endswith(PAYMENT_PATH))
+
+    def test_payment_sends_order_ids_and_referer(self) -> None:
+        token = "0123456789abcdef0123456789abcdef"
+        order = OrderReference("202610310001234567", "987654321")
+        session = FakeSession(post_responses=[FakeResponse(status_code=200)])
+        client = BookingSiteClient(session, self.logger, payment_enabled=True)
+
+        client.pay(config(), order, token)
+
+        url, kwargs = session.post_calls[0]
+        self.assertTrue(url.endswith(PAYMENT_PATH))
+        self.assertEqual(
+            kwargs["data"],
+            {
+                "orderId": order.order_id,
+                "reserveId": order.reserve_id,
+                "data": "",
+                "id": "",
+                "select_pay_type": "-1",
+                "token": token,
+            },
+        )
+        self.assertIn(
+            f"reserveId={order.reserve_id}", kwargs["headers"]["Referer"]
+        )
+        self.assertIn(
+            f"orderId={order.order_id}", kwargs["headers"]["Referer"]
+        )
+
+    def test_payment_timeout_is_not_retried(self) -> None:
+        session = FakeSession(post_errors=[requests.Timeout("slow")])
+        client = BookingSiteClient(session, self.logger, payment_enabled=True)
+
+        with self.assertRaisesRegex(PaymentError, "超时"):
+            client.pay(config(), OrderReference("123", "456"), "a" * 32)
+
+        self.assertEqual(len(session.post_calls), 1)
+
+    def test_payment_read_timeout_is_not_retried(self) -> None:
+        delays: list[float] = []
+        session = FakeSession(post_errors=[requests.ReadTimeout("slow")])
+        client = BookingSiteClient(
+            session, self.logger, payment_enabled=True, sleep=delays.append
+        )
+
+        with self.assertRaisesRegex(PaymentError, "超时"):
+            client.pay(config(), OrderReference("123", "456"), "a" * 32)
+
+        self.assertEqual(len(session.post_calls), 1)
+        self.assertEqual(delays, [])
+
+    def test_payment_connect_timeout_is_retried_then_succeeds(self) -> None:
+        delays: list[float] = []
+        session = FakeSession(
+            post_errors=[
+                requests.ConnectTimeout("no route"),
+                requests.ConnectTimeout("no route"),
+            ],
+            post_responses=[FakeResponse(status_code=200)],
+        )
+        client = BookingSiteClient(
+            session, self.logger, payment_enabled=True, sleep=delays.append
+        )
+
+        client.pay(config(), OrderReference("123", "456"), "a" * 32)
+
+        self.assertEqual(len(session.post_calls), 3)
+        self.assertEqual(delays, [0.5, 0.5])
+
+    def test_payment_stops_after_three_connect_timeouts(self) -> None:
+        delays: list[float] = []
+        session = FakeSession(post_errors=[requests.ConnectTimeout("no route")] * 3)
+        client = BookingSiteClient(
+            session, self.logger, payment_enabled=True, sleep=delays.append
+        )
+
+        with self.assertRaisesRegex(PaymentError, "连接超时"):
+            client.pay(config(), OrderReference("123", "456"), "a" * 32)
+
+        self.assertEqual(len(session.post_calls), 3)
+        self.assertEqual(delays, [0.5, 0.5])
+
+    def test_payment_uses_a_short_connect_timeout(self) -> None:
+        session = FakeSession(post_responses=[FakeResponse(status_code=200)])
+        client = BookingSiteClient(session, self.logger, payment_enabled=True)
+
+        client.pay(config(), OrderReference("123", "456"), "a" * 32)
+
+        self.assertEqual(session.post_calls[0][1]["timeout"], (5.0, 20.0))
+
+    def test_payment_redirect_does_not_retry_or_follow(self) -> None:
+        session = FakeSession(post_responses=[FakeResponse(status_code=302)])
+        client = BookingSiteClient(session, self.logger, payment_enabled=True)
+
+        with self.assertRaisesRegex(PaymentError, "HTTP 302"):
+            client.pay(config(), OrderReference("123", "456"), "a" * 32)
+
+        self.assertEqual(len(session.post_calls), 1)
+        self.assertFalse(session.post_calls[0][1]["allow_redirects"])
+
+    def test_request_logs_describe_outcomes_without_leaking_token(self) -> None:
+        token = "0123456789abcdef0123456789abcdef"
+        session = FakeSession(
+            get_responses=[FakeResponse(text=f'<input name="token" value="{token}">')],
+            post_responses=[
+                FakeResponse(
+                    text=(
+                        '<input name="orderId" value="202610310001234567">'
+                        '<input name="reserveId" value="987654321">'
+                    )
+                )
+            ],
+        )
+        client = BookingSiteClient(session, self.logger)
+
+        with self.assertLogs(self.logger, level=logging.INFO) as captured:
+            client.get_booking_token(config())
+            client.create_order(config(), "295", token)
+
+        messages = "\n".join(record.getMessage() for record in captured.records)
+        self.assertNotIn(token, messages)
+        self.assertIn("已获取预约 token：长度 32", messages)
+        self.assertIn("GET /front/syqk -> HTTP 200", messages)
+        self.assertIn("创建订单响应：HTTP 200", messages)
+        self.assertIn("orderId=**************4567", messages)
 
     def test_failed_payment_is_never_retried(self) -> None:
         session = FakeSession(

@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.IOException
+import java.io.File
 
 enum class BookingOutcome { SUCCESS, FAILED, ABORT }
 
@@ -60,6 +61,7 @@ object BookingService {
                     put("PYTHONUTF8", "1")
                     put("PYTHONIOENCODING", "utf-8")
                     put("DOLPHIN_CREDENTIALS_STDIN", "1")
+                    put("BOOKING_LOG_DIR", File(System.getProperty("user.home"), "Dolphin/logs").absolutePath)
                 }
                 val running = processBuilder.start()
                 process = running

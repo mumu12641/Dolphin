@@ -17,6 +17,10 @@ class SiteProtocolError(BookingAssistantError):
     """The booking site returned an unexpected response."""
 
 
+class AccountBlacklistedError(SiteProtocolError):
+    """The booking system explicitly denied a blacklisted account."""
+
+
 class VenueUnavailableError(BookingAssistantError):
     """A requested venue is no longer available."""
 

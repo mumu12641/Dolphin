@@ -6,7 +6,7 @@ from booking_assistant.cli import _credentials, build_parser
 
 
 class CliContractTests(TestCase):
-    def test_original_option_names_are_unchanged(self) -> None:
+    def test_booking_and_account_check_options_are_available(self) -> None:
         parser = build_parser()
         actual = {
             option
@@ -25,6 +25,7 @@ class CliContractTests(TestCase):
                 "--priority_list",
                 "--user_name",
                 "--password",
+                "--check-account",
             },
         )
 

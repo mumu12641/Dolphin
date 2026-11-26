@@ -111,7 +111,7 @@ compose.desktop {
             modules("jdk.unsupported")
             modules("jdk.unsupported.desktop")
             packageName = "Dolphin"
-            packageVersion = "1.1.0"
+            packageVersion = "1.2.0"
 
             windows {
                 iconFile.set(project.layout.projectDirectory.file("src/jvmMain/resources/icon.ico"))
